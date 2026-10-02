@@ -45,6 +45,11 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
   clientUrl: clientUrls[0] || 'http://localhost:5173',
   allowedOrigins: [...new Set([...clientUrls, 'http://localhost:5173'])],
+  isAllowedOrigin(origin) {
+    if (!origin) return true;
+    const o = origin.replace(/\/+$/, '');
+    return this.allowedOrigins.includes(o) || /^https:\/\/gymora[a-z0-9-]*\.vercel\.app$/i.test(o);
+  },
   autoApproveGyms: String(process.env.AUTO_APPROVE_GYMS ?? 'true') === 'true',
   platformAdminEmail: process.env.PLATFORM_ADMIN_EMAIL,
   platformAdminPassword: process.env.PLATFORM_ADMIN_PASSWORD,
