@@ -7,7 +7,7 @@ import { errorHandler, notFoundRoute } from './middleware/error.js';
 import { UPLOAD_DIR } from './utils/upload.js';
 
 const app = express();
-const origins = env.clientUrl.split(',').map((s) => s.trim());
+const origins = env.allowedOrigins;
 
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));

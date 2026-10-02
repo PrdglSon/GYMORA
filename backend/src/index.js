@@ -11,7 +11,7 @@ import { ACCOUNT_MODELS, roleOf } from './middleware/auth.js';
 async function start() {
   await connectDB();
   const server = http.createServer(app);
-  const io = new Server(server, { cors: { origin: env.clientUrl.split(',').map((s) => s.trim()), credentials: true } });
+  const io = new Server(server, { cors: { origin: env.allowedOrigins, credentials: true } });
 
   io.use(async (socket, next) => {
     try {

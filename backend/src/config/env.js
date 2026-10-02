@@ -32,13 +32,19 @@ for (const key of ['MONGODB_URI', 'JWT_SECRET']) {
   }
 }
 
+const clientUrls = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map((s) => s.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
 export const env = {
   port: Number(process.env.PORT || 5000),
   nodeEnv: process.env.NODE_ENV || 'development',
   mongoUri: process.env.MONGODB_URI,
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  clientUrl: clientUrls[0] || 'http://localhost:5173',
+  allowedOrigins: [...new Set([...clientUrls, 'http://localhost:5173'])],
   autoApproveGyms: String(process.env.AUTO_APPROVE_GYMS ?? 'true') === 'true',
   platformAdminEmail: process.env.PLATFORM_ADMIN_EMAIL,
   platformAdminPassword: process.env.PLATFORM_ADMIN_PASSWORD,
