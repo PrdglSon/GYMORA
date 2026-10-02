@@ -64,6 +64,5 @@ export function scheduleJobs() {
     console.warn(`Invalid DAILY_JOB_CRON "${env.dailyJobCron}". Scheduled jobs are off.`);
     return;
   }
-  cron.schedule(env.dailyJobCron, () => runDailyJobs().then((t) => console.log('[jobs] done', t)).catch((e) => console.error('[jobs]', e)), { timezone: process.env.TZ });
-  console.log(`Scheduled jobs: "${env.dailyJobCron}" (${process.env.TZ})`);
+  cron.schedule(env.dailyJobCron, () => runDailyJobs().catch((e) => console.error('[jobs]', e)), { timezone: process.env.TZ });
 }

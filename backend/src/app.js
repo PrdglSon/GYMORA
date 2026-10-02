@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import { env } from './config/env.js';
 import api from './routes/index.js';
 import { errorHandler, notFoundRoute } from './middleware/error.js';
@@ -15,7 +14,6 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: origins, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
-if (env.nodeEnv !== 'test') app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 
 app.use('/uploads', express.static(UPLOAD_DIR, { maxAge: '7d' }));
 app.use('/api', api);

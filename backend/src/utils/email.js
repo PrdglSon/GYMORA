@@ -10,11 +10,7 @@ const transporter = env.smtp.host
     })
   : null;
 
-if (transporter) {
-  transporter.verify().then(() => console.log(`Email ready: sending as ${env.smtp.user}`)).catch((err) => console.error(`[email] SMTP login failed: ${err.message}`));
-} else {
-  console.log('Email not configured: emails will be printed here instead of sent.');
-}
+if (transporter) transporter.verify().catch((err) => console.error(`[email] SMTP login failed: ${err.message}`));
 
 export async function sendEmail({ to, subject, text, html }) {
   if (!to) return;
