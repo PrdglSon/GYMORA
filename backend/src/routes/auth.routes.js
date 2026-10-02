@@ -95,7 +95,7 @@ r.post('/forgot', limiter, ah(async (req, res) => {
     a.resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
     a.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000);
     await a.save();
-    await sendEmail({ to: a.email, subject: 'Reset your GYMORA password', text: `Reset your password within 1 hour:\n${env.clientUrl}/reset-password?type=${portal.model}&token=${token}` });
+    sendEmail({ to: a.email, subject: 'Reset your GYMORA password', text: `Reset your password within 1 hour:\n${env.clientUrl}/reset-password?type=${portal.model}&token=${token}` });
   }
   res.json({ message: 'If that email is registered, a reset link is on its way.' });
 }));
