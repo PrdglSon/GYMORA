@@ -52,9 +52,23 @@ const theme = createTheme({
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
-        root: { borderRadius: 6, paddingInline: 18 },
-        containedPrimary: { color: '#fff' },
-        outlined: { borderColor: '#D2D2D2', color: brand.ink, '&:hover': { borderColor: '#BDBDBD', background: brand.fill } },
+        root: {
+          borderRadius: 6,
+          paddingInline: 18,
+          transition: 'transform .18s ease, box-shadow .2s ease, background-color .2s ease, border-color .2s ease, color .2s ease',
+          '&:hover': { transform: 'translateY(-2px)' },
+          '&:active': { transform: 'translateY(0)' },
+          '&.Mui-disabled': { transform: 'none' },
+        },
+        contained: {
+          position: 'relative',
+          overflow: 'hidden',
+          '&::after': { content: '""', position: 'absolute', top: 0, left: '-75%', width: '50%', height: '100%', background: 'linear-gradient(120deg, transparent, rgba(255,255,255,.45), transparent)', transform: 'skewX(-20deg)', transition: 'left .55s ease', pointerEvents: 'none' },
+          '&:hover::after': { left: '130%' },
+        },
+        containedPrimary: { color: '#fff', '&:hover': { boxShadow: '0 10px 22px -8px rgba(255,175,0,.7)' } },
+        outlined: { borderColor: '#D2D2D2', color: brand.ink, '&:hover': { borderColor: brand.yellow, background: brand.yellowSoft, boxShadow: '0 8px 18px -10px rgba(0,0,0,.35)' } },
+        text: { '&:hover': { transform: 'none', background: brand.yellowSoft } },
       },
     },
     MuiCard: { defaultProps: { variant: 'outlined' }, styleOverrides: { root: { borderColor: brand.line, borderRadius: 10 } } },

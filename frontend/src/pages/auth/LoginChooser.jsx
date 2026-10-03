@@ -117,9 +117,6 @@ export default function LoginChooser() {
       <Stack direction="row" spacing={1} justifyContent="center" sx={{ mt: 2.5 }}>
         <Button component={RouterLink} to="/own-a-gym" variant="outlined" size="small">Own a gym? Register it</Button>
       </Stack>
-      <Typography variant="caption" color="text.secondary" component="div" textAlign="center" sx={{ mt: 1.5 }}>
-        <Link component={RouterLink} to="/platform/login" color="inherit" underline="hover">Platform admin login</Link>
-      </Typography>
     </AuthLayout>
   );
 }
