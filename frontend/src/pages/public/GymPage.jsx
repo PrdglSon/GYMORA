@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, Card, CardContent, Chip, Container, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
-import QrCode2Outlined from '@mui/icons-material/QrCode2Outlined';
 import FavoriteBorder from '@mui/icons-material/FavoriteBorder';
 import ChatBubbleOutline from '@mui/icons-material/ChatBubbleOutline';
 import useFetch from '../../hooks/useFetch';
@@ -131,18 +130,6 @@ export default function GymPage() {
                     </Box>
                   )}
 
-                  <Card>
-                    <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Box sx={{ width: 46, height: 46, borderRadius: 2, bgcolor: brand.yellowSoft, color: brand.yellow, display: 'grid', placeItems: 'center' }}><QrCode2Outlined /></Box>
-                        <Box>
-                          <Typography fontWeight={800}>Front desk kiosk</Typography>
-                          <Typography variant="body2" color="text.secondary">Staff can open the QR check-in kiosk on a gym device.</Typography>
-                        </Box>
-                      </Stack>
-                      <Button variant="outlined" component={RouterLink} to={`/kiosk/${slug}`}>Open kiosk</Button>
-                    </CardContent>
-                  </Card>
                 </Stack>
               )}
 
@@ -327,7 +314,6 @@ export default function GymPage() {
         <Box>
           <Typography fontWeight={700}>Coaches</Typography>
           <Typography variant="body2" sx={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate(`/g/${slug}/apply`)}>Apply to coach</Typography>
-          <Typography variant="body2" sx={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => navigate(`/kiosk/${slug}`)}>Check-in kiosk</Typography>
         </Box>
       </PublicFooter>
     </Box>
