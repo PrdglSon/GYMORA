@@ -36,7 +36,7 @@ const TRAINING = [
 
 const FEATURES = [
   ['Membership Management', 'Registration, plans, renewals and student verification.', GroupsOutlined],
-  ['Digital Attendance', 'Check in through the mobile app, a QR kiosk or the front desk.', QrCode2Outlined],
+  ['Digital Attendance', 'Check in with a QR code at the kiosk or at the front desk.', QrCode2Outlined],
   ['Coach Management', 'Specializations, schedules and live availability.', SportsOutlined],
   ['Programs & Classes', 'Create programs, schedule sessions and track enrollment.', FitnessCenterOutlined],
   ['Payments & POS', 'Membership billing, walk-ins and retail sales.', PointOfSaleOutlined],
@@ -46,7 +46,7 @@ const FEATURES = [
 ];
 
 const HIGHLIGHTS = [
-  ['Members check in with a QR code', 'Tap in from the app, scan at the kiosk or check in at the desk.', QrCode2Outlined],
+  ['Members check in with a QR code', 'Scan your QR at the gym kiosk or check in at the front desk.', QrCode2Outlined],
   ['Coaches post live availability', 'Members see who is Available, In Session or away, in real time.', SportsOutlined],
   ['Staff record payments and sales', 'Memberships, walk-ins and POS sales in one place.', PointOfSaleOutlined],
   ['Owners see real-time reports', 'Attendance, revenue and peak hours at a glance.', InsightsOutlined],
@@ -146,7 +146,7 @@ function LivePanel() {
           })}
         </Stack>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, mt: 2.5, pt: 2, borderTop: '1px solid rgba(255,255,255,.1)' }}>
-          {[[3, '', 'Check-in methods'], [4, '', 'User roles'], [100, '%', 'Web-based']].map(([n, s, l]) => (
+          {[[2, '', 'Check-in methods'], [4, '', 'User roles'], [100, '%', 'Web-based']].map(([n, s, l]) => (
             <Box key={l} textAlign="center">
               <Typography sx={{ fontFamily: DISPLAY_FONT, fontWeight: 700, fontSize: 26, color: brand.yellow, lineHeight: 1 }}><CountUp to={n} suffix={s} /></Typography>
               <Typography variant="caption" sx={{ color: '#9a9a9a' }}>{l}</Typography>

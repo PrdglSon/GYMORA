@@ -2,7 +2,8 @@ import mongoose from 'mongoose';
 
 const { ObjectId } = mongoose.Schema.Types;
 
-export const CHECKIN_METHODS = ['Mobile App', 'QR Kiosk', 'Front Desk'];
+export const CHECKIN_METHODS = ['QR Kiosk', 'Front Desk'];
+const STORED_METHODS = [...CHECKIN_METHODS, 'Mobile App'];
 
 const schema = new mongoose.Schema(
   {
@@ -14,7 +15,7 @@ const schema = new mongoose.Schema(
     date: { type: Date, required: true },
     timeIn: { type: Date, required: true },
     timeOut: Date,
-    method: { type: String, enum: CHECKIN_METHODS, required: true },
+    method: { type: String, enum: STORED_METHODS, required: true },
     status: { type: String, enum: ['Checked In', 'Checked Out', 'Auto Checked Out'], default: 'Checked In' },
     payment: { type: ObjectId, ref: 'Payment' },
     recordedBy: { type: ObjectId, ref: 'StaffAdmin' },

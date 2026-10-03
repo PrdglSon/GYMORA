@@ -166,7 +166,7 @@ async function main() {
     if ((await Enrollment.countDocuments({ program: p._id })) < p.capacity) await Enrollment.create({ gym: G, program: p._id, member: m._id }).catch(() => {});
   }
 
-  const methods = ['Mobile App', 'Mobile App', 'QR Kiosk', 'QR Kiosk', 'Front Desk'];
+  const methods = ['QR Kiosk', 'QR Kiosk', 'QR Kiosk', 'Front Desk', 'Front Desk'];
   const hours = [6, 6, 7, 7, 8, 9, 10, 12, 16, 17, 17, 18, 18, 18, 19, 19, 20];
   const now = new Date();
   const att = [];
@@ -183,7 +183,7 @@ async function main() {
       visit(m, tin, tout, choose(methods));
     }
   }
-  for (let d = -20; d < 0; d++) if (d % 2 === 0 || d % 3 === 0) visit(members[0], at(d, 18, 5), at(d, 19, 20), 'Mobile App');
+  for (let d = -20; d < 0; d++) if (d % 2 === 0 || d % 3 === 0) visit(members[0], at(d, 18, 5), at(d, 19, 20), 'QR Kiosk');
   await Attendance.insertMany(att);
   for (const m of members) {
     const visits = att.filter((a) => String(a.member) === String(m._id));

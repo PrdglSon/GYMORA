@@ -14,7 +14,7 @@ import { LineChart, BarChart, DonutChart } from '../../components/Charts';
 import { ftime, peso, hourLabel, isoDay } from '../../utils/format';
 import { brand } from '../../theme';
 
-const CHECKIN_METHODS = ['Mobile App', 'QR Kiosk', 'Front Desk'];
+const CHECKIN_METHODS = ['QR Kiosk', 'Front Desk'];
 const PAY_METHODS = ['Cash', 'GCash', 'Card', 'Other', 'Unpaid'];
 
 function MemberPicker({ onPick }) {
@@ -168,7 +168,7 @@ export default function Attendance() {
             <LineChart legend height={200} labels={s.week.map((w) => dayjs(w.date).format('MMM D'))} series={[{ label: 'Members', data: s.week.map((w) => w.members), color: brand.blue }, { label: 'Walk-ins', data: s.week.map((w) => w.walkins), color: brand.green }, { label: 'Total', data: s.week.map((w) => w.members + w.walkins), color: brand.purple }]} />
           </Section>
           <Section title="Check-in methods (today)">
-            <DonutChart center={s.today.total} sub="Check-ins" segments={[{ label: 'Mobile App', value: s.methods['Mobile App'] || 0, color: brand.blue }, { label: 'QR Kiosk', value: s.methods['QR Kiosk'] || 0, color: brand.green }, { label: 'Front Desk', value: s.methods['Front Desk'] || 0, color: brand.orange }]} />
+            <DonutChart center={s.today.total} sub="Check-ins" segments={[{ label: 'QR Kiosk', value: s.methods['QR Kiosk'] || 0, color: brand.green }, { label: 'Front Desk', value: s.methods['Front Desk'] || 0, color: brand.orange }]} />
           </Section>
           <Section title="Today's peak hours">
             <BarChart height={200} labels={hours.map(hourLabel)} data={hours.map((h) => s.hourly[h])} highlight={hours.map((h) => s.hourly[h]).indexOf(Math.max(...hours.map((h) => s.hourly[h])))} label="Check-ins" />

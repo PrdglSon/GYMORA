@@ -36,7 +36,6 @@ export default function MemberDashboard() {
   const busy = useFetch('/attendance/busy');
   const sessions = useFetch('/programs/sessions', { params: { enrolled: 'true', days: 7 }, initial: [] });
   const badges = useFetch('/engagement/badges/me');
-  const [btnBusy, setBtnBusy] = useState(false);
 
   useSocketEvent('busy:update', busy.reload);
   useSocketEvent('attendance:self', () => {
@@ -48,22 +47,6 @@ export default function MemberDashboard() {
       me.setData((d) => ({ ...d, coach: { ...d.coach, availabilityStatus: p.availabilityStatus } }));
     }
   });
-
-  const toggle = async () => {
-    setBtnBusy(true);
-    try {
-      const { data } = await api.post('/attendance/me/toggle');
-      toast(`${data.title} ${data.message}`, data.ok ? 'success' : 'error');
-      visits.reload();
-      me.reload();
-      badges.reload();
-      if (data.ok) refresh();
-    } catch (e) {
-      toast(errMsg(e), 'error');
-    } finally {
-      setBtnBusy(false);
-    }
-  };
 
   const m = me.data?.member || account;
   const coach = me.data?.coach;
@@ -92,12 +75,10 @@ export default function MemberDashboard() {
         line1="Discipline today."
         accent="Strength"
         rest="tomorrow."
-        sub={open ? `You checked in at ${ftime(open.timeIn)}. Have a great session!` : canCheckIn ? 'Tap Check In when you arrive at the gym.' : 'Renew your membership to check in.'}
+        sub={open ? `You checked in at ${ftime(open.timeIn)}. Have a great session!` : canCheckIn ? 'Scan your QR code at the gym kiosk, or check in at the front desk.' : 'Renew your membership to check in.'}
         actions={
           <>
-            <Button size="large" variant="contained" color={open ? 'secondary' : 'primary'} onClick={toggle} disabled={btnBusy || (!open && !canCheckIn)}>
-              {open ? 'Check Out' : 'Check In'}
-            </Button>
+            <Button size="large" variant="contained" onClick={() => navigate('/member/profile')}>Show my QR code</Button>
             <Button size="large" variant="outlined" onClick={() => navigate('/member/programs')}>Programs</Button>
           </>
         }

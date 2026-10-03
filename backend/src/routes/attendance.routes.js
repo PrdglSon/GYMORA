@@ -15,10 +15,6 @@ function dayRange(dateStr) {
   return { $gte: startOfDay(d), $lte: endOfDay(d) };
 }
 
-r.post('/me/toggle', allow('member'), ah(async (req, res) => {
-  res.json(await toggleMemberVisit({ gym: req.gymId, settings: req.gym.settings, member: req.member, method: 'Mobile App' }));
-}));
-
 r.get('/me', allow('member'), ah(async (req, res) => {
   const visits = await Attendance.find({ member: req.member._id }).sort({ timeIn: -1 }).limit(120).lean();
   const open = visits.find((v) => !v.timeOut && new Date(v.timeIn) >= startOfDay());
@@ -65,7 +61,7 @@ r.get('/stats', allow(...STAFF), ah(async (req, res) => {
     Member.countDocuments({ gym: req.gymId, 'current.endDate': { $gte: today } }),
   ]);
   const count = (arr, type) => arr.filter((a) => !type || a.attendeeType === type).length;
-  const methods = { 'Mobile App': 0, 'QR Kiosk': 0, 'Front Desk': 0 };
+  const methods = { 'QR Kiosk': 0, 'Front Desk': 0 };
   t.forEach((a) => (methods[a.method] = (methods[a.method] || 0) + 1));
   const hourly = Array(24).fill(0);
   t.forEach((a) => hourly[new Date(a.timeIn).getHours()]++);
