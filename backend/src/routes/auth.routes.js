@@ -77,7 +77,7 @@ r.post('/register-gym', limiter, ah(async (req, res) => {
   const status = env.autoApproveGyms ? 'active' : 'pending';
   const { gym, admin } = await createGymWithOwner({
     status,
-    gym: { name: req.body.gymName, email: req.body.email, phoneNumber: req.body.phoneNumber, city: req.body.city, address: req.body.address, branches: req.body.branches || 1, estimatedMembers: req.body.estimatedMembers },
+    gym: { name: req.body.gymName, email: req.body.email, phoneNumber: req.body.phoneNumber, city: req.body.city, address: req.body.address, estimatedMembers: req.body.estimatedMembers },
     owner: { email: req.body.email, password: req.body.password, firstName: req.body.firstName, lastName: req.body.lastName, phoneNumber: req.body.phoneNumber },
   });
   sendEmail({ to: admin.email, subject: `Welcome to GYMORA, ${gym.name}`, text: status === 'active' ? `Your gym is ready. Log in at ${env.clientUrl}/admin/login` : 'We received your registration. The GYMORA team will review it soon.' });

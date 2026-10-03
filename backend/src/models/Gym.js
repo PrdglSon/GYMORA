@@ -39,7 +39,6 @@ const gymSchema = new mongoose.Schema(
     city: String,
     country: { type: String, default: 'Philippines' },
     logoUrl: String,
-    branches: { type: Number, default: 1 },
     estimatedMembers: String,
     status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'active' },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'StaffAdmin' },

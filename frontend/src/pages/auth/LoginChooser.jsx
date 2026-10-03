@@ -45,8 +45,8 @@ export default function LoginChooser() {
   const results = useMemo(() => {
     const term = q.trim().toLowerCase();
     const list = gyms || [];
-    if (!term) return list.slice(0, 8);
-    return list.filter((g) => [g.name, g.city].filter(Boolean).some((v) => v.toLowerCase().includes(term))).slice(0, 8);
+    if (!term) return list;
+    return list.filter((g) => [g.name, g.city].filter(Boolean).some((v) => v.toLowerCase().includes(term)));
   }, [gyms, q]);
 
   const pickGym = (g) => setParams({ gym: g.slug });
@@ -97,7 +97,7 @@ export default function LoginChooser() {
         onChange={(e) => setQ(e.target.value)}
         InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
       />
-      <Stack spacing={1} sx={{ mt: 2, minHeight: 120 }}>
+      <Stack spacing={1} sx={{ mt: 2, minHeight: 120, maxHeight: 312, overflowY: 'auto', pr: 0.5, scrollbarWidth: 'thin', scrollbarColor: `${brand.yellow} transparent`, '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: brand.yellow, borderRadius: 3 } }}>
         {error && <Alert severity="error">Cannot load gyms. Is the backend running?</Alert>}
         {!loading && !error && !results.length && (
           <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 3 }}>
@@ -105,7 +105,7 @@ export default function LoginChooser() {
           </Typography>
         )}
         {results.map((g) => (
-          <Box key={g._id} component="button" type="button" onClick={() => pickGym(g)} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, textAlign: 'left', font: 'inherit', cursor: 'pointer', border: `1px solid ${brand.line}`, borderRadius: 2.5, bgcolor: '#fff', '&:hover': { borderColor: brand.yellow, bgcolor: brand.yellowSoft } }}>
+          <Box key={g._id} component="button" type="button" onClick={() => pickGym(g)} sx={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, textAlign: 'left', font: 'inherit', cursor: 'pointer', border: `1px solid ${brand.line}`, borderRadius: 2.5, bgcolor: '#fff', '&:hover': { borderColor: brand.yellow, bgcolor: brand.yellowSoft } }}>
             <GymAvatar gym={g} size={38} />
             <Box sx={{ minWidth: 0 }}>
               <Typography fontWeight={800} noWrap>{g.name}</Typography>

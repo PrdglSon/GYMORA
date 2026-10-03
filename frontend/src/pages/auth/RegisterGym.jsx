@@ -9,7 +9,7 @@ import { Grid } from '../../components/ui';
 export default function RegisterGym() {
   const navigate = useNavigate();
   const { acceptSession } = useAuth();
-  const [f, setF] = useState({ gymName: '', firstName: '', lastName: '', email: '', phoneNumber: '', password: '', city: '', address: '', branches: 1, estimatedMembers: '100–300' });
+  const [f, setF] = useState({ gymName: '', firstName: '', lastName: '', email: '', phoneNumber: '', password: '', city: '', address: '', estimatedMembers: '100–300' });
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const [busy, setBusy] = useState(false);
@@ -50,7 +50,6 @@ export default function RegisterGym() {
             <TextField label="Phone" value={f.phoneNumber} onChange={set('phoneNumber')} />
             <TextField label="Password" type="password" value={f.password} onChange={set('password')} required inputProps={{ minLength: 8 }} helperText="At least 8 characters" />
             <TextField label="Address" value={f.address} onChange={set('address')} />
-            <TextField select label="Number of branches" value={f.branches} onChange={set('branches')}>{[1, 2, 3, 4, 5].map((n) => <MenuItem key={n} value={n}>{n === 5 ? '5+' : n}</MenuItem>)}</TextField>
             <TextField select label="Estimated members" value={f.estimatedMembers} onChange={set('estimatedMembers')}>{['Under 100', '100–300', '300–1,000', '1,000+'].map((n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}</TextField>
           </Grid>
           <Button type="submit" size="large" variant="contained" disabled={busy}>Register my gym</Button>

@@ -100,7 +100,7 @@ export default function PlatformGyms() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>Gym</TableCell><TableCell>Owner</TableCell><TableCell>City</TableCell><TableCell>Size</TableCell>
+                  <TableCell>Gym</TableCell><TableCell>Owner</TableCell><TableCell>City</TableCell><TableCell>Est. members</TableCell>
                   <TableCell align="right">Members</TableCell><TableCell>Registered</TableCell><TableCell>Status</TableCell><TableCell />
                 </TableRow>
               </TableHead>
@@ -116,7 +116,7 @@ export default function PlatformGyms() {
                       <Typography variant="caption" display="block" color="text.secondary">{[x.owner?.email, x.owner?.phoneNumber].filter(Boolean).join(' · ')}</Typography>
                     </TableCell>
                     <TableCell>{x.city || '—'}</TableCell>
-                    <TableCell>{x.branches || 1} branch{(x.branches || 1) > 1 ? 'es' : ''} · {x.estimatedMembers || '—'}</TableCell>
+                    <TableCell>{x.estimatedMembers || '—'}</TableCell>
                     <TableCell align="right">{x.members}</TableCell>
                     <TableCell>{fdate(x.createdAt)}</TableCell>
                     <TableCell><StatusChip label={x.status} color={STATUS_COLOR[x.status]} /></TableCell>
