@@ -6,59 +6,57 @@ import useFetch from '../../hooks/useFetch';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { usePageTitle } from '../../components/AppShell';
-import { ConfirmDialog, DataState, Grid, Section, StatusChip, UserAvatar } from '../../components/ui';
+import { DataState, Grid, Section, StatusChip, UserAvatar } from '../../components/ui';
 import { fdate } from '../../utils/format';
 
-function LiveQr({ refreshKey }) {
+function CheckInQr() {
   const [qr, setQr] = useState(null);
   const [left, setLeft] = useState(0);
-  const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    let alive = true;
-    let timer;
-    let tick;
-    const load = async () => {
-      try {
-        const { data } = await api.get('/members/me/qr-live');
-        if (!alive) return;
-        setFailed(false);
-        setQr(data);
-        const until = Date.now() + data.expiresInMs;
-        clearInterval(tick);
-        const update = () => setLeft(Math.max(0, Math.ceil((until - Date.now()) / 1000)));
-        update();
-        tick = setInterval(update, 1000);
-        timer = setTimeout(load, data.expiresInMs + 300);
-      } catch {
-        if (!alive) return;
-        setFailed(true);
-        timer = setTimeout(load, 5000);
-      }
+    if (!qr) return undefined;
+    const update = () => {
+      const s = Math.max(0, Math.ceil((qr.until - Date.now()) / 1000));
+      setLeft(s);
+      if (!s) setQr(null);
     };
-    load();
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        clearTimeout(timer);
-        load();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-      clearInterval(tick);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
-  }, [refreshKey]);
+    update();
+    const t = setInterval(update, 500);
+    return () => clearInterval(t);
+  }, [qr]);
 
-  if (!qr) return <Typography variant="body2" sx={{ p: 4 }}>{failed ? 'Cannot load your QR code. Check your internet.' : 'Loading…'}</Typography>;
+  const generate = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const { data } = await api.get('/members/me/qr-live');
+      setQr({ ...data, until: Date.now() + data.expiresInMs });
+    } catch (err) {
+      setError(errMsg(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!qr) {
+    return (
+      <Stack alignItems="center" spacing={1}>
+        {error && <Alert severity="error">{error}</Alert>}
+        <Button variant="contained" onClick={generate} disabled={busy}>{busy ? 'Generating…' : 'Generate QR code'}</Button>
+      </Stack>
+    );
+  }
   return (
-    <Box sx={{ width: 170 }}>
-      <Box sx={{ opacity: failed ? 0.25 : 1 }}><QRCodeSVG value={qr.code} size={170} /></Box>
-      <LinearProgress variant="determinate" value={(left / qr.stepSec) * 100} sx={{ mt: 1, height: 6, borderRadius: 3 }} />
-      <Typography variant="caption" color="text.secondary" component="div" textAlign="center">{failed ? 'Offline: code not updating' : `New code in ${left}s`}</Typography>
-    </Box>
+    <Stack alignItems="center" spacing={1}>
+      <Box sx={{ p: 1.5, bgcolor: '#fff', border: 1, borderColor: 'divider', borderRadius: 2, width: 200 }}>
+        <QRCodeSVG value={qr.code} size={170} />
+        <LinearProgress variant="determinate" value={(left / qr.validSec) * 100} sx={{ mt: 1, height: 6, borderRadius: 3 }} />
+        <Typography variant="caption" color="text.secondary" component="div" textAlign="center">Expires in {left}s</Typography>
+      </Box>
+      <Button size="small" onClick={() => setQr(null)}>Hide</Button>
+    </Stack>
   );
 }
 
@@ -88,8 +86,6 @@ export default function MemberProfile() {
   const [doc, setDoc] = useState(null);
   const [school, setSchool] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [confirmQr, setConfirmQr] = useState(false);
-  const [qrKey, setQrKey] = useState(0);
 
   useEffect(() => {
     if (me.data?.member) {
@@ -148,16 +144,6 @@ export default function MemberProfile() {
     }
   };
 
-  const regen = async () => {
-    try {
-      await api.post('/members/me/qr/regenerate');
-      setQrKey((k) => k + 1);
-      setConfirmQr(false);
-      toast('QR code reset.');
-    } catch (err) {
-      toast(errMsg(err), 'error');
-    }
-  };
 
   const m = me.data?.member;
   const student = m?.student || {};
@@ -187,12 +173,9 @@ export default function MemberProfile() {
 
             <Section title="Your check-in QR">
               <Stack alignItems="center" spacing={1}>
-                <Box sx={{ p: 1.5, bgcolor: '#fff', border: 1, borderColor: 'divider', borderRadius: 2 }}>
-                  <LiveQr refreshKey={qrKey} />
-                </Box>
+                <CheckInQr />
                 <Typography fontWeight={800}>{m.memberCode}</Typography>
-                <Typography variant="caption" color="text.secondary" textAlign="center">This code changes every 30 seconds, so screenshots will not work. Scan it at the kiosk when you arrive and when you leave.</Typography>
-                <Button size="small" onClick={() => setConfirmQr(true)}>Reset QR code</Button>
+                <Typography variant="caption" color="text.secondary" textAlign="center">Tap Generate QR code at the gym, then scan it at the kiosk. Each code works for 60 seconds only. Generate a new one when you check out.</Typography>
               </Stack>
             </Section>
 
@@ -244,15 +227,6 @@ export default function MemberProfile() {
               </Stack>
             </Section>
           </Stack>
-
-          <ConfirmDialog
-            open={confirmQr}
-            title="Reset your QR code?"
-            message="Any QR code already on a screen stops working right away. A new one appears here."
-            confirmLabel="Reset QR code"
-            onClose={() => setConfirmQr(false)}
-            onConfirm={regen}
-          />
         </Grid>
       )}
     </DataState>

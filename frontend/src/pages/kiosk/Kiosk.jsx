@@ -228,7 +228,7 @@ export default function Kiosk() {
               <Stack spacing={2}>
                 {title('Scan your', 'QR')}
                 {camera ? <Scanner onScan={scan} /> : <Button variant="outlined" onClick={() => setCamera(true)}>Turn on camera scanner</Button>}
-                <Typography variant="caption" color="text.secondary" textAlign="center">Open the GYMORA app, go to Profile and scan your live QR code. Scan once to check in and again when you leave. No phone? Please see the front desk.</Typography>
+                <Typography variant="caption" color="text.secondary" textAlign="center">Open the GYMORA app, go to Profile and tap Generate QR code. Scan it once to check in, and generate a new one to check out when you leave. No phone? Please see the front desk.</Typography>
               </Stack>
             ) : (
               <Stack component="form" spacing={2} onSubmit={walkin}>

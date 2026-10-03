@@ -21,11 +21,11 @@ r.get('/:slug/verify', kioskGym, (req, res) => res.json({ name: req.kgym.name, s
 r.post('/:slug/scan', kioskGym, ah(async (req, res) => {
   requireFields(req.body, ['code']);
   const parsed = parseLiveQr(req.body.code);
-  if (!parsed) return res.json({ ok: false, title: 'Code not accepted', message: 'Open the GYMORA app, go to Profile and scan the live QR code shown there.' });
+  if (!parsed) return res.json({ ok: false, title: 'Code not accepted', message: 'Open the GYMORA app, go to Profile, tap Generate QR code and scan it here.' });
   const member = await Member.findOne({ _id: parsed.id, gym: req.kgym._id });
   if (!member || member.status !== 'active') return res.json({ ok: false, title: 'Not recognized', message: 'This QR code does not match an active member. Please see the front desk.' });
   const check = verifyLiveQr(member, parsed);
-  if (check === 'expired') return res.json({ ok: false, title: 'QR code expired', message: 'This code is too old. Show the live code on your phone and scan again.' });
+  if (check === 'expired') return res.json({ ok: false, title: 'QR code expired', message: 'This code has expired. Tap Generate QR code in the app and scan again.' });
   if (check !== 'ok') return res.json({ ok: false, title: 'Not recognized', message: 'This QR code is not valid. Please see the front desk.' });
   const result = await toggleMemberVisit({ gym: req.kgym._id, settings: req.kgym.settings, member, method: 'QR Kiosk' });
   if (result.action !== 'cooldown') auditSystem(req.kgym._id, 'Attendance', `Kiosk tap-${result.action}: ${member.memberCode}`);

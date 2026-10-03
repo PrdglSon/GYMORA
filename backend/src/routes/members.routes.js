@@ -63,12 +63,6 @@ r.get('/me/qr-live', allow('member'), ah(async (req, res) => {
   res.json(liveQr(req.member));
 }));
 
-r.post('/me/qr/regenerate', allow('member'), ah(async (req, res) => {
-  req.member.qrToken = crypto.randomBytes(12).toString('hex');
-  await req.member.save();
-  res.json({ ok: true });
-}));
-
 r.post('/me/student-id', allow('member'), upload.single('document'), ah(async (req, res) => {
   if (!req.file) throw new ApiError(400, 'Attach a photo or PDF of your school ID.');
   const m = req.member;
