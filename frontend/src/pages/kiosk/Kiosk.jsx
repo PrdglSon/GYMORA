@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
-import { Alert, Box, Button, Link, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
+import { Alert, Avatar, Box, Button, Link, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
 import { Html5Qrcode } from 'html5-qrcode';
 import api, { errMsg, fileUrl } from '../../api';
 import Logo from '../../components/Logo';
 import { brand, DISPLAY_FONT } from '../../theme';
-import { peso0 } from '../../utils/format';
+import { initials, peso0 } from '../../utils/format';
 
 const keyName = (slug) => `gymora_kiosk_${slug}`;
 const readKey = (slug) => {
@@ -58,7 +58,7 @@ function Scanner({ onScan }) {
       .then((list) => {
         if (!alive) return;
         if (!list.length) {
-          setError('No camera found. Type the member code below instead.');
+          setError('No camera found. Members can check in at the front desk.');
           return;
         }
         setCameras(list);
@@ -66,7 +66,7 @@ function Scanner({ onScan }) {
         const pick = list.find((c) => c.id === saved) || list.find((c) => !VIRTUAL.test(c.label || '')) || list[0];
         setCameraId(pick.id);
       })
-      .catch(() => alive && setError('Camera permission was blocked. Allow the camera in the browser address bar, or type the member code below.'));
+      .catch(() => alive && setError('Camera permission was blocked. Allow the camera in the browser address bar.'));
     return () => {
       alive = false;
     };
@@ -80,7 +80,7 @@ function Scanner({ onScan }) {
     try {
       scanner = new Html5Qrcode('kiosk-reader');
     } catch {
-      setError('Camera not available. Type the member code below instead.');
+      setError('Camera not available. Members can check in at the front desk.');
       return undefined;
     }
     scanner
@@ -126,7 +126,6 @@ export default function Kiosk() {
   const [keyInput, setKeyInput] = useState('');
   const [error, setError] = useState('');
   const [tab, setTab] = useState(0);
-  const [code, setCode] = useState('');
   const [guest, setGuest] = useState({ fullName: '', phoneNumber: '' });
   const [result, setResult] = useState(null);
   const [camera, setCamera] = useState(false);
@@ -180,14 +179,6 @@ export default function Kiosk() {
     setResult(null);
   };
 
-  const submitCode = (e) => {
-    e.preventDefault();
-    const c = code.trim();
-    if (!c) return;
-    scan(c);
-    setCode('');
-  };
-
   const walkin = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -201,6 +192,8 @@ export default function Kiosk() {
       setBusy(false);
     }
   };
+
+  const tone = !result ? {} : result.action === 'cooldown' ? { bg: brand.yellowSoft, fg: brand.yellowInk } : result.ok ? { bg: brand.greenSoft, fg: brand.green } : { bg: brand.redSoft, fg: brand.red };
 
   const title = (a, b) => (
     <Typography textAlign="center" sx={{ fontFamily: DISPLAY_FONT, fontWeight: 700, fontSize: 28, textTransform: 'uppercase' }}>
@@ -235,11 +228,7 @@ export default function Kiosk() {
               <Stack spacing={2}>
                 {title('Scan your', 'QR')}
                 {camera ? <Scanner onScan={scan} /> : <Button variant="outlined" onClick={() => setCamera(true)}>Turn on camera scanner</Button>}
-                <Stack component="form" direction="row" spacing={1} onSubmit={submitCode}>
-                  <TextField label="Or type your member code" placeholder="M-0001" value={code} onChange={(e) => setCode(e.target.value)} />
-                  <Button type="submit" variant="contained">Go</Button>
-                </Stack>
-                <Typography variant="caption" color="text.secondary" textAlign="center">Scan once to check in. Scan again when you leave to check out.</Typography>
+                <Typography variant="caption" color="text.secondary" textAlign="center">Open the GYMORA app, go to Profile and scan your live QR code. Scan once to check in and again when you leave. No phone? Please see the front desk.</Typography>
               </Stack>
             ) : (
               <Stack component="form" spacing={2} onSubmit={walkin}>
@@ -251,8 +240,18 @@ export default function Kiosk() {
               </Stack>
             )}
             {result && (
-              <Box role="status" sx={{ mt: 2, p: 2, borderRadius: 3, textAlign: 'center', bgcolor: result.ok ? brand.greenSoft : brand.redSoft }}>
-                <Typography fontWeight={800} fontSize={20} sx={{ color: result.ok ? brand.green : brand.red }}>{result.title}</Typography>
+              <Box role="status" sx={{ mt: 2, p: 2, borderRadius: 3, textAlign: 'center', bgcolor: tone.bg }}>
+                {result.member && (
+                  <Stack alignItems="center" spacing={0.5} sx={{ mb: 1.5 }}>
+                    <Avatar src={result.member.photoUrl ? fileUrl(result.member.photoUrl) : undefined} sx={{ width: 120, height: 120, fontSize: 40, fontWeight: 800, bgcolor: '#fff', color: brand.yellowInk, border: `4px solid ${tone.fg}` }}>
+                      {initials(result.member.name)}
+                    </Avatar>
+                    <Typography fontWeight={800}>{result.member.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">{[result.member.memberCode, result.member.planName].filter(Boolean).join(' · ')}</Typography>
+                    {!result.member.photoUrl && <Typography variant="caption" sx={{ color: brand.red, fontWeight: 700 }}>No photo on file. Staff: please verify ID.</Typography>}
+                  </Stack>
+                )}
+                <Typography fontWeight={800} fontSize={20} sx={{ color: tone.fg }}>{result.title}</Typography>
                 <Typography variant="body2">{result.message}</Typography>
               </Box>
             )}

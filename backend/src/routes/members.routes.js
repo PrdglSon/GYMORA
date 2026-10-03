@@ -13,6 +13,7 @@ import { audit } from '../utils/audit.js';
 import { startOfDay, addDays } from '../utils/dates.js';
 import { clientIdsOf } from './coaches.routes.js';
 import { sendEmail } from '../utils/email.js';
+import { liveQr } from '../utils/liveQr.js';
 import { env } from '../config/env.js';
 
 const r = Router();
@@ -47,7 +48,7 @@ r.get('/me', allow('member'), ah(async (req, res) => {
     m.assignedCoach ? Coach.findById(m.assignedCoach).lean() : null,
   ]);
   const specs = coach ? (await specializationsByCoach(req.gymId))[String(coach._id)] || [] : [];
-  res.json({ member: memberDTO(m, req.gym.settings), qrToken: m.qrToken, memberships, payments, coach: coach ? coachDTO(coach, specs) : null });
+  res.json({ member: memberDTO(m, req.gym.settings), memberships, payments, coach: coach ? coachDTO(coach, specs) : null });
 }));
 
 r.patch('/me', allow('member'), ah(async (req, res) => {
@@ -57,10 +58,15 @@ r.patch('/me', allow('member'), ah(async (req, res) => {
   res.json(memberDTO(req.member, req.gym.settings));
 }));
 
+r.get('/me/qr-live', allow('member'), ah(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(liveQr(req.member));
+}));
+
 r.post('/me/qr/regenerate', allow('member'), ah(async (req, res) => {
   req.member.qrToken = crypto.randomBytes(12).toString('hex');
   await req.member.save();
-  res.json({ qrToken: req.member.qrToken });
+  res.json({ ok: true });
 }));
 
 r.post('/me/student-id', allow('member'), upload.single('document'), ah(async (req, res) => {

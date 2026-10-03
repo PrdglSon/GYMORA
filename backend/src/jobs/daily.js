@@ -4,6 +4,7 @@ import { notify, notifyStaff, toMember } from '../utils/notify.js';
 import { auditSystem } from '../utils/audit.js';
 import { startOfDay, addDays, hhmmToMinutes } from '../utils/dates.js';
 import { emitToStaff } from '../utils/socket.js';
+import { closeOpenVisitsAtClosing } from '../utils/attendance.js';
 import { env } from '../config/env.js';
 
 async function recentlySent(type, id, title, days) {
@@ -59,7 +60,22 @@ export async function runDailyJobs({ gymId } = {}) {
   return totals;
 }
 
+export async function runClosingCheckout() {
+  const gyms = await Gym.find({ status: 'active' }).select('settings.openTime settings.closeTime');
+  let total = 0;
+  for (const gym of gyms) {
+    const open = hhmmToMinutes(gym.settings.openTime);
+    const close = hhmmToMinutes(gym.settings.closeTime);
+    if (!(close > open)) continue;
+    const n = await closeOpenVisitsAtClosing(gym._id, close);
+    if (n) await auditSystem(gym._id, 'Attendance', `Auto checked out ${n} at closing time`);
+    total += n;
+  }
+  return total;
+}
+
 export function scheduleJobs() {
+  cron.schedule('*/10 * * * *', () => runClosingCheckout().catch((e) => console.error('[jobs]', e)), { timezone: process.env.TZ });
   if (!cron.validate(env.dailyJobCron)) {
     console.warn(`Invalid DAILY_JOB_CRON "${env.dailyJobCron}". Scheduled jobs are off.`);
     return;

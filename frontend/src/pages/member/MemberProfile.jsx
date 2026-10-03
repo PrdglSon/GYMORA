@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Box, Button, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, LinearProgress, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import { QRCodeSVG } from 'qrcode.react';
 import api, { errMsg, fileUrl } from '../../api';
 import useFetch from '../../hooks/useFetch';
@@ -8,6 +8,59 @@ import { useToast } from '../../context/ToastContext';
 import { usePageTitle } from '../../components/AppShell';
 import { ConfirmDialog, DataState, Grid, Section, StatusChip, UserAvatar } from '../../components/ui';
 import { fdate } from '../../utils/format';
+
+function LiveQr({ refreshKey }) {
+  const [qr, setQr] = useState(null);
+  const [left, setLeft] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    let timer;
+    let tick;
+    const load = async () => {
+      try {
+        const { data } = await api.get('/members/me/qr-live');
+        if (!alive) return;
+        setFailed(false);
+        setQr(data);
+        const until = Date.now() + data.expiresInMs;
+        clearInterval(tick);
+        const update = () => setLeft(Math.max(0, Math.ceil((until - Date.now()) / 1000)));
+        update();
+        tick = setInterval(update, 1000);
+        timer = setTimeout(load, data.expiresInMs + 300);
+      } catch {
+        if (!alive) return;
+        setFailed(true);
+        timer = setTimeout(load, 5000);
+      }
+    };
+    load();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        clearTimeout(timer);
+        load();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+      clearInterval(tick);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [refreshKey]);
+
+  if (!qr) return <Typography variant="body2" sx={{ p: 4 }}>{failed ? 'Cannot load your QR code. Check your internet.' : 'Loading…'}</Typography>;
+  return (
+    <Box sx={{ width: 170 }}>
+      <Box sx={{ opacity: failed ? 0.25 : 1 }}><QRCodeSVG value={qr.code} size={170} /></Box>
+      <LinearProgress variant="determinate" value={(left / qr.stepSec) * 100} sx={{ mt: 1, height: 6, borderRadius: 3 }} />
+      <Typography variant="caption" color="text.secondary" component="div" textAlign="center">{failed ? 'Offline: code not updating' : `New code in ${left}s`}</Typography>
+    </Box>
+  );
+}
 
 const GOALS = ['Weight Loss', 'Muscle Gain', 'Strength', 'General Fitness', 'Endurance', 'Flexibility'];
 const GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'];
@@ -36,6 +89,7 @@ export default function MemberProfile() {
   const [school, setSchool] = useState('');
   const [uploading, setUploading] = useState(false);
   const [confirmQr, setConfirmQr] = useState(false);
+  const [qrKey, setQrKey] = useState(0);
 
   useEffect(() => {
     if (me.data?.member) {
@@ -96,10 +150,10 @@ export default function MemberProfile() {
 
   const regen = async () => {
     try {
-      const { data } = await api.post('/members/me/qr/regenerate');
-      me.setData((d) => ({ ...d, qrToken: data.qrToken }));
+      await api.post('/members/me/qr/regenerate');
+      setQrKey((k) => k + 1);
       setConfirmQr(false);
-      toast('New QR code issued. The old one no longer works.');
+      toast('QR code reset.');
     } catch (err) {
       toast(errMsg(err), 'error');
     }
@@ -134,11 +188,11 @@ export default function MemberProfile() {
             <Section title="Your check-in QR">
               <Stack alignItems="center" spacing={1}>
                 <Box sx={{ p: 1.5, bgcolor: '#fff', border: 1, borderColor: 'divider', borderRadius: 2 }}>
-                  {me.data.qrToken ? <QRCodeSVG value={me.data.qrToken} size={170} /> : <Typography variant="body2">No QR code</Typography>}
+                  <LiveQr refreshKey={qrKey} />
                 </Box>
                 <Typography fontWeight={800}>{m.memberCode}</Typography>
-                <Typography variant="caption" color="text.secondary" textAlign="center">Scan this at the QR kiosk, or give your member code at the front desk.</Typography>
-                <Button size="small" onClick={() => setConfirmQr(true)}>Issue a new code</Button>
+                <Typography variant="caption" color="text.secondary" textAlign="center">This code changes every 30 seconds, so screenshots will not work. Scan it at the kiosk when you arrive and when you leave.</Typography>
+                <Button size="small" onClick={() => setConfirmQr(true)}>Reset QR code</Button>
               </Stack>
             </Section>
 
@@ -193,9 +247,9 @@ export default function MemberProfile() {
 
           <ConfirmDialog
             open={confirmQr}
-            title="Issue a new QR code?"
-            message="Your current QR code will stop working at the kiosk immediately."
-            confirmLabel="Issue new code"
+            title="Reset your QR code?"
+            message="Any QR code already on a screen stops working right away. A new one appears here."
+            confirmLabel="Reset QR code"
             onClose={() => setConfirmQr(false)}
             onConfirm={regen}
           />

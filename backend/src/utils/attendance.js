@@ -14,9 +14,27 @@ function broadcast(gym, att, memberId) {
   if (memberId) emitToAccount('Member', memberId, 'attendance:self', { id: att._id, out: !!att.timeOut });
 }
 
+export const SCAN_COOLDOWN_MIN = 5;
+
+const clock = (d) => new Date(d).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+
+export function scanCard(member) {
+  return { name: `${member.firstName} ${member.lastName}`, memberCode: member.memberCode, photoUrl: member.avatarUrl || '', planName: member.current?.planName || '' };
+}
+
 export async function toggleMemberVisit({ gym, settings, member, method, recordedBy }) {
   const open = await findOpenVisit(gym, member._id);
   const name = `${member.firstName} ${member.lastName}`;
+  if (method === 'QR Kiosk') {
+    const gap = SCAN_COOLDOWN_MIN * 60000;
+    if (open && Date.now() - open.timeIn.getTime() < gap) {
+      return { ok: true, action: 'cooldown', attendance: open, title: `Already checked in, ${member.firstName}`, message: `You checked in at ${clock(open.timeIn)}. Scan again when you leave to check out.` };
+    }
+    if (!open) {
+      const last = await Attendance.findOne({ gym, member: member._id, timeOut: { $gte: new Date(Date.now() - gap) } }).sort({ timeOut: -1 });
+      if (last) return { ok: true, action: 'cooldown', attendance: last, title: `Already checked out, ${member.firstName}`, message: `You checked out at ${clock(last.timeOut)}. See you next time!` };
+    }
+  }
   if (open) {
     open.timeOut = new Date();
     open.status = 'Checked Out';
@@ -78,4 +96,22 @@ export async function walkInCheckout(att) {
   await att.save();
   broadcast(att.gym, att, att.member);
   return att;
+}
+
+export async function closeOpenVisitsAtClosing(gym, closeMinutes, now = new Date()) {
+  const today = startOfDay(now);
+  const closeAt = new Date(today.getTime() + closeMinutes * 60000);
+  if (now < closeAt) return 0;
+  const open = await Attendance.find({ gym, timeOut: null, timeIn: { $gte: today, $lte: closeAt } });
+  for (const a of open) {
+    a.timeOut = closeAt;
+    a.status = 'Auto Checked Out';
+    await a.save();
+    if (a.member) emitToAccount('Member', a.member, 'attendance:self', { id: a._id, out: true });
+  }
+  if (open.length) {
+    emitToStaff(gym, 'attendance:update', {});
+    emitToGym(gym, 'busy:update', {});
+  }
+  return open.length;
 }
