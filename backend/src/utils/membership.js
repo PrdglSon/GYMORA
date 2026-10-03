@@ -1,5 +1,6 @@
 import { Membership, Payment, Member, MembershipPlan, nextCode } from '../models/index.js';
-import { addDays, startOfDay, daysBetween } from './dates.js';
+import { addDays, startOfDay, daysBetween, DAY_MS } from './dates.js';
+import { ApiError } from './http.js';
 
 export function membershipStatus(endDate, settings = {}) {
   if (!endDate) return 'Pending';
@@ -35,7 +36,16 @@ async function syncCurrent(member, membership) {
   await member.save();
 }
 
-export async function sellMembership({ gym, member, plan, paid = true, method = 'Cash', referenceNumber, amount, recordedBy, posTransaction }) {
+export async function sellMembership({ gym, member, plan, paid = true, method = 'Cash', referenceNumber, amount, recordedBy, posTransaction, allowDuplicate = false }) {
+  if (!allowDuplicate) {
+    const recent = await Payment.findOne({ gym, member: member._id, paymentType: 'Membership', status: { $ne: 'Void' }, createdAt: { $gte: startOfDay() } }).sort({ createdAt: -1 });
+    if (recent) {
+      if (recent.status === 'Unpaid') throw new ApiError(409, `${member.firstName} ${member.lastName} already has an unpaid membership invoice (${recent.receiptNo}). Mark that invoice as paid in Payments & Billing instead.`, { duplicate: true, receiptNo: recent.receiptNo, blocked: true });
+      const fresh = Date.now() - recent.createdAt.getTime() < 2 * 60000;
+      if (fresh) throw new ApiError(409, `This membership was already recorded a moment ago (${recent.receiptNo}). Refresh the page to see it.`, { duplicate: true, receiptNo: recent.receiptNo, blocked: true });
+      throw new ApiError(409, `${member.firstName} ${member.lastName} already has a membership recorded today (${recent.receiptNo}). Record another one only if they are paying for an extra period.`, { duplicate: true, receiptNo: recent.receiptNo });
+    }
+  }
   const price = amount ?? plan.price;
   const membership = await Membership.create({
     gym,
@@ -84,4 +94,36 @@ export async function settlePayment(payment, { method = 'Cash', referenceNumber,
     await syncCurrent(member, membership);
   }
   return payment;
+}
+
+export async function cancelMembership(membershipId) {
+  const ms = await Membership.findById(membershipId);
+  if (!ms || ms.status === 'Cancelled') return null;
+  const wasActive = ms.status === 'Active';
+  ms.status = 'Cancelled';
+  await ms.save();
+  const member = await Member.findById(ms.member);
+  if (!member || !wasActive) return member;
+  const today = startOfDay();
+  const all = await Membership.find({ member: member._id, status: 'Active' }).sort({ startDate: 1, createdAt: 1 });
+  const past = all.filter((m) => m.endDate && new Date(m.endDate) < today);
+  const ongoing = all.filter((m) => m.endDate && new Date(m.endDate) >= today);
+  let prevEnd = past.length ? startOfDay(past[past.length - 1].endDate) : null;
+  let chainStart = null;
+  for (const m of ongoing) {
+    const length = Math.round((startOfDay(m.endDate) - startOfDay(m.startDate)) / DAY_MS) + 1;
+    const earliest = prevEnd && addDays(prevEnd, 1) > today ? addDays(prevEnd, 1) : today;
+    const start = startOfDay(m.startDate) <= today ? startOfDay(m.startDate) : earliest;
+    m.startDate = start;
+    m.endDate = addDays(start, length - 1);
+    await m.save();
+    if (!chainStart) chainStart = start;
+    prevEnd = startOfDay(m.endDate);
+  }
+  const last = ongoing[ongoing.length - 1] || past[past.length - 1];
+  member.current = last
+    ? { membership: last._id, plan: last.plan, planName: last.planName, startDate: ongoing.length ? chainStart : last.startDate, endDate: last.endDate }
+    : undefined;
+  await member.save();
+  return member;
 }

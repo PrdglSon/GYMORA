@@ -124,7 +124,7 @@ r.post('/transactions', ah(async (req, res) => {
   }
   const ms = lines.find((l) => l.itemType === 'Membership');
   if (ms) {
-    await sellMembership({ gym: req.gymId, member, plan: ms.doc, paid: true, method: paymentMethod, referenceNumber: req.body.referenceNumber, amount: round2(ms.price * ratio), recordedBy: req.account._id, posTransaction: tx._id });
+    await sellMembership({ gym: req.gymId, member, plan: ms.doc, paid: true, method: paymentMethod, referenceNumber: req.body.referenceNumber, amount: round2(ms.price * ratio), recordedBy: req.account._id, posTransaction: tx._id, allowDuplicate: true });
     await notify(toMember(member), { gym: req.gymId, type: 'Membership', title: 'Membership renewed', message: `${ms.doc.planName} active until ${new Date(member.current.endDate).toDateString()}.`, link: '/member/payments', email: true });
   }
   audit(req, 'Point of Sale', `Transaction ${tx.transactionNo}: ₱${totalAmount} (${paymentMethod})`);

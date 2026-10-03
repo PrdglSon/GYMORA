@@ -89,7 +89,7 @@ r.post('/me/renew', allow('member'), ah(async (req, res) => {
   const open = await Payment.findOne({ member: req.member._id, paymentType: 'Membership', status: 'Unpaid' });
   if (open) throw new ApiError(409, `You already have an unpaid invoice (${open.receiptNo}). Pay it at the front desk or wait for staff to verify it.`);
   if (req.body.method === 'GCash' && !/^\d{10,13}$/.test(String(req.body.referenceNumber || ''))) throw new ApiError(400, 'Enter the 10 to 13 digit GCash reference number.');
-  const { payment } = await sellMembership({ gym: req.gymId, member: req.member, plan, paid: false });
+  const { payment } = await sellMembership({ gym: req.gymId, member: req.member, plan, paid: false, allowDuplicate: true });
   if (req.body.method === 'GCash') {
     payment.referenceNumber = req.body.referenceNumber;
     payment.description += ' (GCash, for verification)';
@@ -180,7 +180,7 @@ r.post('/:id/memberships', allow(...STAFF), ah(async (req, res) => {
   if (!plan) throw new ApiError(400, 'Unknown plan.');
   if (plan.isStudentPlan && m.student?.status !== 'verified') throw new ApiError(400, 'Verify the student ID before selling the student plan.');
   const paid = req.body.method !== 'Unpaid';
-  const result = await sellMembership({ gym: req.gymId, member: m, plan, paid, method: req.body.method || 'Cash', referenceNumber: req.body.referenceNumber, recordedBy: req.account._id });
+  const result = await sellMembership({ gym: req.gymId, member: m, plan, paid, method: req.body.method || 'Cash', referenceNumber: req.body.referenceNumber, recordedBy: req.account._id, allowDuplicate: req.body.allowDuplicate === true });
   if (paid) await notify(toMember(m), { gym: req.gymId, type: 'Membership', title: 'Membership renewed', message: `${plan.planName} is active until ${new Date(m.current.endDate).toDateString()}.`, link: '/member/payments', email: true });
   audit(req, 'Payment and Billing', `Sold ${plan.planName} to ${m.memberCode} (${paid ? req.body.method || 'Cash' : 'unpaid'})`);
   res.status(201).json({ member: memberDTO(m, req.gym.settings), ...result });

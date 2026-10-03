@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, FormControlLabel, IconButton, MenuItem, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useSocketEvent } from '../../context/SocketContext';
 import { usePageTitle } from '../../components/AppShell';
-import { DataState, Grid, Section, StatCard, StatusChip, UserAvatar, Empty } from '../../components/ui';
+import { ConfirmDialog, DataState, Grid, Section, StatCard, StatusChip, UserAvatar, Empty } from '../../components/ui';
 import { fdate, fdm, fdt, peso, peso0 } from '../../utils/format';
 import { brand } from '../../theme';
 
@@ -35,8 +35,11 @@ function AddMemberDialog({ open, onClose, plans, onSaved }) {
     }
   }, [open]);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const lock = useRef(false);
   const submit = async (e) => {
     e.preventDefault();
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       const body = { ...f, password: f.password || undefined, heightCm: f.heightCm || undefined, birthdate: f.birthdate || undefined, planId: f.planId || undefined, method: f.planId ? f.method : undefined, referenceNumber: f.referenceNumber || undefined };
@@ -46,6 +49,7 @@ function AddMemberDialog({ open, onClose, plans, onSaved }) {
     } catch (err) {
       toast(errMsg(err), 'error');
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   };
@@ -119,7 +123,11 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
     }
   }, [d.data, plans]);
 
-  const run = async (fn, msg) => {
+  const [dup, setDup] = useState('');
+  const lock = useRef(false);
+  const run = async (fn, msg, onError) => {
+    if (lock.current) return null;
+    lock.current = true;
     setBusy(true);
     try {
       const r = await fn();
@@ -128,12 +136,25 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
       onChanged();
       return r;
     } catch (err) {
-      toast(errMsg(err), 'error');
+      if (!onError || !onError(err)) toast(errMsg(err), 'error');
       return null;
     } finally {
+      lock.current = false;
       setBusy(false);
     }
   };
+  const sell = (allowDuplicate = false) => run(
+    () => api.post(`/members/${id}/memberships`, { ...renew, referenceNumber: renew.referenceNumber || undefined, allowDuplicate }),
+    renew.method === 'Unpaid' ? 'Invoice created' : 'Membership sold and payment recorded',
+    (err) => {
+      const det = err?.response?.data?.details;
+      if (err?.response?.status === 409 && det?.duplicate && !det.blocked) {
+        setDup(errMsg(err));
+        return true;
+      }
+      return false;
+    }
+  );
   const checkin = async () => {
     const r = await run(() => api.post(`/members/${id}/checkin`));
     if (r) toast(`${r.data.title} ${r.data.message}`, r.data.ok ? 'success' : 'error');
@@ -185,7 +206,7 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
               </Tabs>
               {tab === 0 && (
                 <Stack spacing={2}>
-                  <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); run(() => api.post(`/members/${id}/memberships`, { ...renew, referenceNumber: renew.referenceNumber || undefined }), renew.method === 'Unpaid' ? 'Invoice created' : 'Membership sold and payment recorded'); }}>
+                  <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); sell(); }}>
                     <Grid cols={{ xs: 1, sm: 3 }}>
                       <TextField select label="Plan" value={renew.planId} onChange={(e) => setRenew({ ...renew, planId: e.target.value })} required>
                         {active.map((p) => <MenuItem key={p._id} value={p._id} disabled={p.isStudentPlan && m.student?.status !== 'verified'}>{p.planName} · {p.duration}d · {peso0(p.price)}</MenuItem>)}
@@ -250,6 +271,15 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
           )}
         </DataState>
       </Box>
+      <ConfirmDialog
+        open={!!dup}
+        title="Membership already recorded today"
+        message={dup}
+        confirmLabel="Record another"
+        busy={busy}
+        onClose={() => setDup('')}
+        onConfirm={() => { setDup(''); sell(true); }}
+      />
     </Drawer>
   );
 }
