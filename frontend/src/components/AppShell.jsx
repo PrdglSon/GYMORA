@@ -19,6 +19,7 @@ import InsightsOutlined from '@mui/icons-material/InsightsOutlined';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import ManageSearchOutlined from '@mui/icons-material/ManageSearchOutlined';
 import CalendarMonthOutlined from '@mui/icons-material/CalendarMonthOutlined';
+import EventAvailableOutlined from '@mui/icons-material/EventAvailableOutlined';
 import BarChartOutlined from '@mui/icons-material/BarChartOutlined';
 import QrCode2Outlined from '@mui/icons-material/QrCode2Outlined';
 import ChatBubbleOutline from '@mui/icons-material/ChatBubbleOutline';
@@ -40,20 +41,20 @@ import { brand } from '../theme';
 
 const ADMIN_NAV = [
   ['', 'Dashboard', HomeOutlined], ['members', 'Members', PeopleOutline], ['attendance', 'Attendance', EventNoteOutlined], ['programs', 'Programs', FitnessCenterOutlined],
-  ['coaches', 'Coaches', SportsOutlined], ['billing', 'Payments & Billing', CreditCardOutlined], ['pos', 'Point of Sale', PointOfSaleOutlined], ['inventory', 'Inventory', Inventory2Outlined],
+  ['coaches', 'Coaches', SportsOutlined], ['bookings', 'Coach Bookings', EventAvailableOutlined], ['billing', 'Payments & Billing', CreditCardOutlined], ['pos', 'Point of Sale', PointOfSaleOutlined], ['inventory', 'Inventory', Inventory2Outlined],
   ['equipment', 'Equipment', BuildOutlined], ['incidents', 'Incident Reports', ReportProblemOutlined], ['support', 'Customer Support', SupportAgentOutlined], ['notifications', 'Notification Management', CampaignOutlined],
   ['community', 'Community', ForumOutlined], ['reports', 'Reports & Analytics', InsightsOutlined], ['settings', 'System Settings', SettingsOutlined], ['audit', 'Audit Logs', ManageSearchOutlined],
 ];
-const STAFF_PAGES = ['', 'members', 'attendance', 'billing', 'pos', 'inventory', 'equipment', 'incidents', 'support', 'community', 'inbox'];
+const STAFF_PAGES = ['', 'members', 'attendance', 'bookings', 'billing', 'pos', 'inventory', 'equipment', 'incidents', 'support', 'community', 'inbox'];
 
 const NAV = {
   member: [
-    ['', 'Dashboard', HomeOutlined], ['programs', 'Programs', FitnessCenterOutlined], ['coaches', 'Find a Coach', PersonSearchOutlined], ['progress', 'Progress', BarChartOutlined],
+    ['', 'Dashboard', HomeOutlined], ['programs', 'Programs', FitnessCenterOutlined], ['coaches', 'Find a Coach', PersonSearchOutlined], ['bookings', 'Bookings', EventAvailableOutlined], ['progress', 'Progress', BarChartOutlined],
     ['community', 'Community', ForumOutlined], ['messages', 'Messages', ChatBubbleOutline], ['payments', 'Payments', CreditCardOutlined], ['help', 'Help & Reports', HelpOutline],
     ['notifications', 'Notifications', NotificationsNoneOutlined], ['profile', 'Profile', PersonOutline],
   ],
   coach: [
-    ['', 'Dashboard', HomeOutlined], ['schedule', 'My Schedule', CalendarMonthOutlined], ['clients', 'My Clients', PeopleOutline], ['programs', 'Programs', EventNoteOutlined],
+    ['', 'Dashboard', HomeOutlined], ['schedule', 'My Schedule', CalendarMonthOutlined], ['bookings', 'Bookings', EventAvailableOutlined], ['clients', 'My Clients', PeopleOutline], ['programs', 'Programs', EventNoteOutlined],
     ['progress', 'Client Progress', BarChartOutlined], ['attendance', 'Attendance', QrCode2Outlined], ['messages', 'Messages', ChatBubbleOutline], ['community', 'Community', ForumOutlined],
     ['help', 'Help & Reports', HelpOutline], ['notifications', 'Notifications', NotificationsNoneOutlined], ['profile', 'Profile', PersonOutline],
   ],

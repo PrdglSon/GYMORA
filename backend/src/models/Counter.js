@@ -16,6 +16,7 @@ const FORMATS = {
   incident: (n) => `IR-${String(n).padStart(4, '0')}`,
   inquiry: (n) => `INQ-${String(n).padStart(4, '0')}`,
   sku: (n) => `SKU-${String(n).padStart(4, '0')}`,
+  booking: (n) => `BK-${String(n).padStart(5, '0')}`,
 };
 
 export async function nextCode(gym, key) {

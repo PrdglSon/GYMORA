@@ -4,10 +4,10 @@ import { initials, deltaPct } from '../utils/format';
 import { fileUrl } from '../api';
 
 const STATUS_COLORS = {
-  green: ['Active', 'Paid', 'Completed', 'Checked Out', 'Read', 'Available', 'Verified', 'verified', 'Resolved', 'Closed', 'Operational', 'In Stock', 'active', 'In gym', 'Enrolled', 'completed'],
-  amber: ['Near Expiry', 'Pending', 'pending', 'Open', 'Checked In', 'Unread', 'Low', 'In Session', 'Grace Period', 'Low Stock', 'Needs Maintenance', 'Normal'],
+  green: ['Active', 'Paid', 'Completed', 'Approved', 'Checked Out', 'Read', 'Available', 'Verified', 'verified', 'Resolved', 'Closed', 'Operational', 'In Stock', 'active', 'In gym', 'Enrolled', 'completed'],
+  amber: ['Near Expiry', 'Pending', 'Requested', 'pending', 'Open', 'Checked In', 'Unread', 'Low', 'In Session', 'Grace Period', 'Low Stock', 'Needs Maintenance', 'Normal'],
   purple: ['In Progress', 'Upcoming', 'Under Repair'],
-  red: ['Expired', 'Unpaid', 'Void', 'Cancelled', 'Dropped', 'Auto Checked Out', 'Rejected', 'rejected', 'Out of Stock', 'Out of Order', 'void', 'High', 'suspended', 'Inactive', 'inactive'],
+  red: ['Expired', 'Unpaid', 'Void', 'Cancelled', 'Declined', 'No-show', 'Dropped', 'Auto Checked Out', 'Rejected', 'rejected', 'Out of Stock', 'Out of Order', 'void', 'High', 'suspended', 'Inactive', 'inactive'],
   blue: ['Member', 'member', 'Mobile App', 'QR Kiosk', 'Info', 'Scheduled'],
 };
 const PALETTE = {

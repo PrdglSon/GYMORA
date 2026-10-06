@@ -12,6 +12,7 @@ export { default as Attendance, CHECKIN_METHODS } from './Attendance.js';
 export { default as FitnessProgram } from './FitnessProgram.js';
 export { default as ProgramSchedule } from './ProgramSchedule.js';
 export { default as Enrollment } from './Enrollment.js';
+export { default as Booking, BOOKING_STATUS, OPEN_BOOKING } from './Booking.js';
 export { default as FitnessProgress } from './FitnessProgress.js';
 export { default as Achievement } from './Achievement.js';
 export { default as NutritionRule } from './NutritionRule.js';

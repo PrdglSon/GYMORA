@@ -44,10 +44,16 @@ function CoachCard({ coach, matched = [], score, mine, highlight, onChoose }) {
         {mine ? (
           <>
             <StatusChip label="Your coach" color="green" />
-            <Button size="small" onClick={() => navigate('/member/messages')}>Message</Button>
+            <Stack direction="row" spacing={0.5}>
+              <Button size="small" onClick={() => navigate('/member/messages')}>Message</Button>
+              <Button size="small" variant="contained" onClick={() => navigate(`/member/bookings?coach=${coach._id}`)}>Book a session</Button>
+            </Stack>
           </>
         ) : (
-          <Button size="small" variant="contained" onClick={() => onChoose(coach)}>Choose coach</Button>
+          <Stack direction="row" spacing={0.5}>
+            <Button size="small" onClick={() => navigate(`/member/bookings?coach=${coach._id}`)}>Book a session</Button>
+            <Button size="small" variant="contained" onClick={() => onChoose(coach)}>Choose coach</Button>
+          </Stack>
         )}
       </Stack>
     </Section>

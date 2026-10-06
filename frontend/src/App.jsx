@@ -53,6 +53,9 @@ import Settings from './pages/admin/Settings';
 import AuditLogs from './pages/admin/AuditLogs';
 
 import PlatformGyms from './pages/platform/PlatformGyms';
+import MemberBookings from './pages/member/MemberBookings';
+import CoachBookings from './pages/coach/CoachBookings';
+import Bookings from './pages/admin/Bookings';
 
 function RequireRole({ roles, portal, children }) {
   const { role, ready } = useAuth();
@@ -74,7 +77,7 @@ function LoginRoute({ portal }) {
 
 const STAFF_ROUTES = [
   ['members', <Members />], ['attendance', <Attendance />], ['billing', <Billing />], ['pos', <POS />], ['inventory', <Inventory />],
-  ['equipment', <Equipment />], ['incidents', <Incidents />], ['support', <Support />], ['community', <Community />], ['inbox', <Notifications />],
+  ['equipment', <Equipment />], ['bookings', <Bookings />], ['incidents', <Incidents />], ['support', <Support />], ['community', <Community />], ['inbox', <Notifications />],
 ];
 const ADMIN_ONLY_ROUTES = [
   ['programs', <Programs />], ['coaches', <Coaches />], ['notifications', <NotificationManagement />], ['reports', <Reports />], ['settings', <Settings />], ['audit', <AuditLogs />],
@@ -100,6 +103,7 @@ export default function App() {
         <Route index element={<MemberDashboard />} />
         <Route path="programs" element={<MemberPrograms />} />
         <Route path="coaches" element={<MemberCoaches />} />
+        <Route path="bookings" element={<MemberBookings />} />
         <Route path="progress" element={<MemberProgress />} />
         <Route path="community" element={<Community />} />
         <Route path="messages" element={<Messages />} />
@@ -112,6 +116,7 @@ export default function App() {
       <Route path="/coach" element={<RequireRole roles={['coach']} portal="coach"><AppShell /></RequireRole>}>
         <Route index element={<CoachDashboard />} />
         <Route path="schedule" element={<CoachSchedule />} />
+        <Route path="bookings" element={<CoachBookings />} />
         <Route path="clients" element={<CoachClients />} />
         <Route path="programs" element={<CoachPrograms />} />
         <Route path="progress" element={<CoachClientProgress />} />

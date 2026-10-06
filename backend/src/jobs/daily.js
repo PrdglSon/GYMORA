@@ -5,6 +5,7 @@ import { auditSystem } from '../utils/audit.js';
 import { startOfDay, addDays, hhmmToMinutes } from '../utils/dates.js';
 import { emitToStaff } from '../utils/socket.js';
 import { closeOpenVisitsAtClosing } from '../utils/attendance.js';
+import { expireOldBookings } from '../routes/bookings.routes.js';
 import { env } from '../config/env.js';
 
 async function recentlySent(type, id, title, days) {
@@ -13,7 +14,7 @@ async function recentlySent(type, id, title, days) {
 
 export async function runDailyJobs({ gymId } = {}) {
   const gyms = await Gym.find(gymId ? { _id: gymId } : { status: 'active' });
-  const totals = { renewalReminders: 0, inactivityAlerts: 0, lowStockItems: 0, equipmentDue: 0, autoCheckedOut: 0 };
+  const totals = { renewalReminders: 0, inactivityAlerts: 0, lowStockItems: 0, equipmentDue: 0, autoCheckedOut: 0, expiredBookings: 0 };
   for (const gym of gyms) {
     const s = gym.settings;
     const today = startOfDay();
@@ -55,6 +56,7 @@ export async function runDailyJobs({ gymId } = {}) {
       totals.autoCheckedOut++;
     }
     if (stale.length) emitToStaff(gym._id, 'attendance:update', {});
+    totals.expiredBookings += await expireOldBookings(gym._id);
     await auditSystem(gym._id, 'System', 'Scheduled jobs ran', totals);
   }
   return totals;
