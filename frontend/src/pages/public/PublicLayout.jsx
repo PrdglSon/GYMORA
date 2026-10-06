@@ -45,6 +45,7 @@ export function PublicFooter({ children }) {
         </Container>
         <Container maxWidth="lg" sx={{ mt: 4, pt: 2, borderTop: '1px solid rgba(255,255,255,0.4)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2">© {new Date().getFullYear()} GYMORA</Typography>
+          <Link component={RouterLink} to="/privacy" variant="body2" sx={{ color: '#fff' }}>Privacy Policy</Link>
         </Container>
       </Box>
     </Box>

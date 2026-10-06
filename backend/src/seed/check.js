@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 import { PlatformAdmin } from '../models/index.js';
+import { deliver, usingGmailApi } from '../utils/email.js';
 
 const ok = (m) => console.log(`  OK    ${m}`);
 const bad = (m) => console.log(`  FIX   ${m}`);
@@ -43,7 +44,18 @@ async function main() {
   }
 
   console.log('\n4. Gmail (password reset emails)');
-  if (!env.smtp.host) bad('SMTP_HOST is missing, so emails are only printed in the backend terminal');
+  if (usingGmailApi) {
+    ok('Using the Gmail API (works on Render free plan)');
+    try {
+      if (!email) bad('PLATFORM_ADMIN_EMAIL is missing, so no test email was sent');
+      else {
+        await deliver({ to: email, subject: 'GYMORA test email', text: 'If you can read this, GYMORA can send emails through the Gmail API.' });
+        ok(`Test email sent to ${email} through the Gmail API. Check Inbox and Spam`);
+      }
+    } catch (err) {
+      bad(err.message);
+    }
+  } else if (!env.smtp.host) bad('SMTP_HOST is missing, so emails are only printed in the backend terminal');
   else {
     ok(`SMTP_HOST = ${env.smtp.host}, SMTP_PORT = ${env.smtp.port}`);
     if (!env.smtp.user) bad('SMTP_USER is missing');

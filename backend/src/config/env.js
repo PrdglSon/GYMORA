@@ -61,5 +61,10 @@ export const env = {
     pass: process.env.SMTP_PASS || '',
     from: process.env.MAIL_FROM || 'GYMORA <no-reply@gymora.app>',
   },
+  gmailApi: {
+    clientId: (process.env.GMAIL_CLIENT_ID || '').trim(),
+    clientSecret: (process.env.GMAIL_CLIENT_SECRET || '').trim(),
+    refreshToken: (process.env.GMAIL_REFRESH_TOKEN || '').trim(),
+  },
   dailyJobCron: process.env.DAILY_JOB_CRON || '0 2 * * *',
 };

@@ -11,6 +11,7 @@ import StaffSignup from './pages/public/StaffSignup';
 import LoginChooser from './pages/auth/LoginChooser';
 import PortalLogin from './pages/auth/PortalLogin';
 import RegisterGym from './pages/auth/RegisterGym';
+import PrivacyPolicy from './pages/public/PrivacyPolicy';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 import Kiosk from './pages/kiosk/Kiosk';
@@ -90,6 +91,7 @@ export default function App() {
       <Route path="/login" element={<LoginChooser />} />
       {['admin', 'staff', 'coach', 'member', 'platform'].map((p) => <Route key={p} path={`/${p}/login`} element={<LoginRoute portal={p} />} />)}
       <Route path="/own-a-gym" element={<RegisterGym />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/kiosk/:slug" element={<Kiosk />} />
