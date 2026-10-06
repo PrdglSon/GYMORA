@@ -53,7 +53,7 @@ export default function LoginChooser() {
 
   if (gym) {
     return (
-      <AuthLayout line1="Welcome" accent="back" sub={`Choose how you log in to ${gym.name}.`}>
+      <AuthLayout gym={gym} line1="Welcome" accent="back" sub={`Choose how you log in to ${gym.name}.`}>
         <Link component="button" type="button" onClick={() => setParams({})} underline="hover" variant="body2">← Choose another gym</Link>
         <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="center" sx={{ mt: 2 }}>
           <GymAvatar gym={gym} />

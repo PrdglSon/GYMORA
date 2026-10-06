@@ -29,7 +29,7 @@ import HelpOutline from '@mui/icons-material/HelpOutline';
 import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown';
-import Logo from './Logo';
+import GymBrand from './GymBrand';
 import NotificationsMenu from './NotificationsMenu';
 import ChangePasswordDialog from './ChangePasswordDialog';
 import { UserAvatar, StatusChip } from './ui';
@@ -118,8 +118,8 @@ export default function AppShell() {
 
   const sidebar = (
     <Box sx={{ width: SIDEBAR, p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Box sx={{ px: 1, pt: 0.5 }}><Logo height={28} onClick={() => navigate(base)} /></Box>
-      {gym && <Typography variant="caption" color="text.secondary" sx={{ px: 1, mt: 0.8 }}>{gym.name}</Typography>}
+      <Box sx={{ px: 1, pt: 0.5 }}><GymBrand gym={gym} height={28} maxWidth={200} onClick={() => navigate(base)} /></Box>
+      {gym?.logoUrl && <Typography variant="caption" color="text.secondary" sx={{ px: 1, mt: 0.8 }}>{gym.name}</Typography>}
       <Box sx={{ px: 1, mt: 0.5 }}><StatusChip label={`${ROLE_LABEL[role]} portal`} color={role === 'admin' ? 'amber' : role === 'receptionist' ? 'blue' : 'grey'} /></Box>
       <List sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.3 }}>
         {items.map(([path, label, Icon]) => (

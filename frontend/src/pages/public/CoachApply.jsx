@@ -40,7 +40,7 @@ export default function CoachApply() {
   };
 
   return (
-    <AuthLayout line1="Inspire. Coach." accent="Transform." sub={`Create your coach account at ${gymName}. You can log in once the gym administrator approves it.`} badge="Coach sign-up" wide>
+    <AuthLayout gym={data?.gym} line1="Inspire. Coach." accent="Transform." sub={`Create your coach account at ${gymName}. You can log in once the gym administrator approves it.`} badge="Coach sign-up" wide>
       <Stack direction="row" justifyContent="space-between">
         <Link component={RouterLink} to={`/login?gym=${slug}`} underline="hover" variant="body2">← Back</Link>
         <Link component={RouterLink} to={`/coach/login?gym=${slug}`} underline="hover" variant="body2" fontWeight={700}>Coach login</Link>

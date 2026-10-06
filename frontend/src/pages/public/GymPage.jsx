@@ -67,7 +67,7 @@ export default function GymPage() {
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <PublicNav links={TABS} active={tab} onLink={setTab} loginTo={`/login?gym=${slug}`} />
+      <PublicNav gym={gym} links={TABS} active={tab} onLink={setTab} loginTo={`/login?gym=${slug}`} />
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <DataState loading={loading} error={error} data={data} onRetry={reload}>
           {data && (

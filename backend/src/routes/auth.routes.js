@@ -71,15 +71,24 @@ r.post('/login', limiter, ah(async (req, res) => {
 
 r.get('/me', protect, ah(async (req, res) => res.json(await sessionPayload(req.accountType, req.account))));
 
-r.post('/register-gym', limiter, ah(async (req, res) => {
+r.post('/register-gym', limiter, upload.single('logo'), ah(async (req, res) => {
   requireFields(req.body, ['gymName', 'firstName', 'lastName', 'email', 'password']);
   if (String(req.body.password).length < 8) throw new ApiError(400, 'Password must be at least 8 characters.');
+  if (req.file && !req.file.mimetype.startsWith('image/')) throw new ApiError(400, 'The logo must be a JPG, PNG, WEBP or GIF image.');
   const status = env.autoApproveGyms ? 'active' : 'pending';
   const { gym, admin } = await createGymWithOwner({
     status,
     gym: { name: req.body.gymName, email: req.body.email, phoneNumber: req.body.phoneNumber, city: req.body.city, address: req.body.address, estimatedMembers: req.body.estimatedMembers },
     owner: { email: req.body.email, password: req.body.password, firstName: req.body.firstName, lastName: req.body.lastName, phoneNumber: req.body.phoneNumber },
   });
+  if (req.file) {
+    try {
+      gym.logoUrl = await saveFile(req.file, 'logos');
+      await gym.save();
+    } catch (err) {
+      console.error('[logo]', err.message);
+    }
+  }
   sendEmail({ to: admin.email, subject: `Welcome to GYMORA, ${gym.name}`, text: status === 'active' ? `Your gym is ready. Log in at ${env.clientUrl}/admin/login` : 'We received your registration. The GYMORA team will review it soon.' });
   if (status !== 'active') return res.status(201).json({ pending: true, message: 'Thanks! Your gym is waiting for approval. We will email you when it is live.' });
   res.status(201).json({ token: signToken('StaffAdmin', admin), ...(await sessionPayload('StaffAdmin', admin)) });

@@ -59,7 +59,7 @@ export default function RegisterMember() {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
 
   return (
-    <AuthLayout line1="Your journey" accent="starts here." sub={`Create your member account at ${data?.gym.name || 'your gym'} and take the first step towards a stronger, healthier you.`} wide>
+    <AuthLayout gym={data?.gym} line1="Your journey" accent="starts here." sub={`Create your member account at ${data?.gym.name || 'your gym'} and take the first step towards a stronger, healthier you.`} wide>
       <Stack direction="row" justifyContent="space-between">
         <Link component={RouterLink} to={`/g/${slug}`} underline="hover" variant="body2">← Back</Link>
         <Link component={RouterLink} to={`/member/login?gym=${slug}`} underline="hover" variant="body2" fontWeight={700}>Member login</Link>

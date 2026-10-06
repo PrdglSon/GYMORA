@@ -44,6 +44,15 @@ function GymInfo({ gym, onSaved }) {
       toast(errMsg(err), 'error');
     }
   };
+  const removeLogo = async () => {
+    try {
+      await api.delete('/settings/logo');
+      toast('Logo removed. Your gym name is shown instead.');
+      onSaved();
+    } catch (err) {
+      toast(errMsg(err), 'error');
+    }
+  };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <Box component="form" onSubmit={save}>
@@ -59,8 +68,9 @@ function GymInfo({ gym, onSaved }) {
         </Grid>
         <TextField sx={{ mt: 2 }} label="About (shown on your public page)" value={f.about} onChange={set('about')} multiline minRows={3} />
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
-          {gym.logoUrl ? <Box component="img" src={fileUrl(gym.logoUrl)} alt="Gym logo" sx={{ height: 48, borderRadius: 1, border: `1px solid ${brand.line}` }} /> : <Typography variant="body2" color="text.secondary">No logo yet</Typography>}
-          <Button component="label" variant="outlined">Upload logo<input hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => e.target.files[0] && logo(e.target.files[0])} /></Button>
+          {gym.logoUrl ? <Box component="img" src={fileUrl(gym.logoUrl)} alt="Gym logo" sx={{ height: 48, borderRadius: 1, border: `1px solid ${brand.line}` }} /> : <Typography variant="body2" color="text.secondary">No logo yet: your gym name is shown instead</Typography>}
+          <Button component="label" variant="outlined">{gym.logoUrl ? 'Change logo' : 'Upload logo'}<input hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => { const file = e.target.files[0]; e.target.value = ''; if (file) logo(file); }} /></Button>
+          {gym.logoUrl && <Button color="error" onClick={removeLogo}>Remove logo</Button>}
           <Typography variant="caption" color="text.secondary">Public page: {window.location.origin}/g/{gym.slug}</Typography>
         </Stack>
       </Section>

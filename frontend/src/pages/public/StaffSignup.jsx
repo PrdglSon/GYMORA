@@ -36,7 +36,7 @@ export default function StaffSignup() {
   };
 
   return (
-    <AuthLayout line1="Join the" accent="front desk" sub={`Create your staff account at ${gymName}. You can log in once the gym administrator approves it.`} badge="Staff sign-up">
+    <AuthLayout gym={data?.gym} line1="Join the" accent="front desk" sub={`Create your staff account at ${gymName}. You can log in once the gym administrator approves it.`} badge="Staff sign-up">
       <Stack direction="row" justifyContent="space-between">
         <Link component={RouterLink} to={`/login?gym=${slug}`} underline="hover" variant="body2">← Back</Link>
         <Link component={RouterLink} to={`/staff/login?gym=${slug}`} underline="hover" variant="body2" fontWeight={700}>Staff login</Link>

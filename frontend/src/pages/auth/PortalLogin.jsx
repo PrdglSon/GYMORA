@@ -49,7 +49,7 @@ export default function PortalLogin({ portal }) {
   };
 
   return (
-    <AuthLayout line1={copy.line1} accent={copy.accent} sub={copy.sub} badge={`${info.label} portal`}>
+    <AuthLayout gym={gymInfo?.gym || (gymInfo?.name ? gymInfo : undefined)} line1={copy.line1} accent={copy.accent} sub={copy.sub} badge={`${info.label} portal`}>
       <Stack direction="row" justifyContent="space-between">
         <Link component={RouterLink} to={gymSlug && portal !== 'platform' ? `/login?gym=${gymSlug}` : '/login'} underline="hover" variant="body2">← Back</Link>
         {portal === 'member' && <Link component={RouterLink} to="/" underline="hover" variant="body2" fontWeight={700}>Find a gym</Link>}

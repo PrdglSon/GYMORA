@@ -29,10 +29,19 @@ r.patch('/', allow('admin'), ah(async (req, res) => {
 
 r.post('/logo', allow('admin'), upload.single('logo'), ah(async (req, res) => {
   if (!req.file) throw new ApiError(400, 'Choose an image.');
+  if (!req.file.mimetype.startsWith('image/')) throw new ApiError(400, 'The logo must be a JPG, PNG, WEBP or GIF image.');
   const gym = await Gym.findById(req.gymId);
   gym.logoUrl = await saveFile(req.file, 'logos');
   await gym.save();
   audit(req, 'System Settings', 'Changed logo');
+  res.json(gym);
+}));
+
+r.delete('/logo', allow('admin'), ah(async (req, res) => {
+  const gym = await Gym.findById(req.gymId);
+  gym.logoUrl = undefined;
+  await gym.save();
+  audit(req, 'System Settings', 'Removed logo');
   res.json(gym);
 }));
 

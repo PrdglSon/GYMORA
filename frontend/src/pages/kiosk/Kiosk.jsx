@@ -4,6 +4,7 @@ import { Alert, Avatar, Box, Button, Link, Stack, Tab, Tabs, TextField, Typograp
 import { Html5Qrcode } from 'html5-qrcode';
 import api, { errMsg, fileUrl } from '../../api';
 import Logo from '../../components/Logo';
+import GymBrand from '../../components/GymBrand';
 import { brand, DISPLAY_FONT } from '../../theme';
 import { initials, peso0 } from '../../utils/format';
 
@@ -205,7 +206,7 @@ export default function Kiosk() {
     <Box sx={{ minHeight: '100vh', bgcolor: brand.panel, display: 'grid', placeItems: 'center', p: 2 }}>
       <Box sx={{ width: '100%', maxWidth: 520, bgcolor: '#fff', borderRadius: 4, p: { xs: 2.5, sm: 4 } }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-          <Logo height={30} />
+          {gym ? <GymBrand gym={{ ...gym, slug }} height={30} maxWidth={300} /> : <Logo height={30} />}
           <Link component={RouterLink} to={`/g/${slug}`} variant="body2" fontWeight={700}>Exit kiosk</Link>
         </Stack>
 
@@ -219,10 +220,6 @@ export default function Kiosk() {
           </Stack>
         ) : (
           <>
-            <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-              {gym.logoUrl && <Box component="img" src={fileUrl(gym.logoUrl)} alt="" sx={{ height: 28 }} />}
-              <Typography variant="body2" fontWeight={700} color="text.secondary">{gym.name}</Typography>
-            </Stack>
             <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth" sx={{ mb: 2 }}><Tab label="Member" /><Tab label="Walk-in guest" /></Tabs>
             {tab === 0 ? (
               <Stack spacing={2}>
