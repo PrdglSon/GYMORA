@@ -11,7 +11,8 @@ export function errorHandler(err, req, res, next) {
   if (err.name === 'ValidationError') {
     status = 400;
     details = Object.fromEntries(Object.entries(err.errors).map(([k, v]) => [k, v.message]));
-    message = `Some fields are invalid: ${Object.keys(details).join(', ')}`;
+    const custom = Object.values(err.errors).map((e) => e.message).filter((m) => !m.startsWith('Path `'));
+    message = custom.length ? [...new Set(custom)].join(' ') : `Some fields are invalid: ${Object.keys(details).join(', ')}`;
   } else if (err.name === 'CastError') {
     status = 400;
     message = `Invalid ${err.path}.`;

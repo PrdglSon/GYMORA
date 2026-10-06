@@ -9,6 +9,7 @@ import { usePageTitle } from '../../components/AppShell';
 import { DataState, Grid, Section, StatusChip, ConfirmDialog, Empty } from '../../components/ui';
 import { peso0, fdt } from '../../utils/format';
 import { brand } from '../../theme';
+import { NameField, PhoneField } from '../../components/ContactFields';
 
 const GOALS = ['Any', 'Weight Loss', 'Muscle Gain', 'Strength', 'General Fitness', 'Endurance', 'Flexibility'];
 const ROLE_LABEL = { admin: 'Administrator', receptionist: 'Staff' };
@@ -61,7 +62,7 @@ function GymInfo({ gym, onSaved }) {
           <TextField label="Gym name" value={f.name} onChange={set('name')} required />
           <TextField label="Tagline" value={f.tagline} onChange={set('tagline')} />
           <TextField label="Email" type="email" value={f.email} onChange={set('email')} />
-          <TextField label="Phone number" value={f.phoneNumber} onChange={set('phoneNumber')} />
+          <PhoneField label="Phone number" value={f.phoneNumber} onChange={set('phoneNumber')} />
           <TextField label="Address" value={f.address} onChange={set('address')} />
           <TextField label="City" value={f.city} onChange={set('city')} />
           <TextField label="Country" value={f.country} onChange={set('country')} />
@@ -428,10 +429,10 @@ function Staff() {
             <Alert severity="success" sx={{ mt: 1 }}>Account created. Login: <b>{f.email}</b>, temporary password <b>{temp}</b>. Share it privately.</Alert>
           ) : (
             <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField label="First name" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} required />
-              <TextField label="Last name" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} required />
+              <NameField label="First name" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} required />
+              <NameField label="Last name" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} required />
               <TextField label="Email" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required />
-              <TextField label="Phone number" value={f.phoneNumber} onChange={(e) => setF({ ...f, phoneNumber: e.target.value })} />
+              <PhoneField label="Phone number" value={f.phoneNumber} onChange={(e) => setF({ ...f, phoneNumber: e.target.value })} />
               <TextField select label="Role" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
                 <MenuItem value="receptionist">{ROLE_LABEL.receptionist}</MenuItem>
                 <MenuItem value="admin">{ROLE_LABEL.admin}</MenuItem>

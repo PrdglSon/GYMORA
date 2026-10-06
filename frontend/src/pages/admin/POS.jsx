@@ -12,6 +12,7 @@ import { usePageTitle, useBase } from '../../components/AppShell';
 import { DataState, Empty, Section, StatusChip } from '../../components/ui';
 import { peso, fdt } from '../../utils/format';
 import { brand, DISPLAY_FONT } from '../../theme';
+import { NameField } from '../../components/ContactFields';
 
 const SWATCH = ['#2B2B2B', '#E8A400', '#B0262B', '#7A4A2A', '#2B6CB0', '#D9572B', '#4B4B4B', '#1E7A4C'];
 const METHODS = ['Cash', 'GCash', 'Card', 'Other'];
@@ -285,7 +286,7 @@ export default function POS() {
               <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="h6">Current sale</Typography><Button size="small" color="error" onClick={clear} disabled={!cart.length && !member}>Clear</Button></Stack>
               <Autocomplete sx={{ mt: 1.5 }} options={memberOpts} value={member} filterOptions={(x) => x} getOptionLabel={(m) => `${m.memberCode} · ${m.name}`} isOptionEqualToValue={(a, b) => a._id === b._id}
                 onInputChange={(_, v) => findMembers(v)} onChange={(_, v) => setMember(v)} renderInput={(p) => <TextField {...p} label="Member (optional)" size="small" />} noOptionsText="Type at least 2 letters" />
-              {!member && <TextField sx={{ mt: 1 }} size="small" fullWidth label="Customer name (blank = Walk-in)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />}
+              {!member && <NameField sx={{ mt: 1 }} size="small" fullWidth label="Customer name (blank = Walk-in)" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />}
               <Stack spacing={1} sx={{ maxHeight: 280, overflowY: 'auto', mt: 1.5 }}>
                 {cart.map((i) => (
                   <Stack key={i.key} direction="row" spacing={1} alignItems="center">

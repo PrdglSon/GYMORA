@@ -13,6 +13,7 @@ import { DataState, Grid, Section, StatCard, StatusChip, Empty } from '../../com
 import { LineChart, BarChart, DonutChart } from '../../components/Charts';
 import { ftime, peso, hourLabel, isoDay } from '../../utils/format';
 import { brand } from '../../theme';
+import { NameField, PhoneField } from '../../components/ContactFields';
 
 const CHECKIN_METHODS = ['QR Kiosk', 'Front Desk'];
 const PAY_METHODS = ['Cash', 'GCash', 'Card', 'Other', 'Unpaid'];
@@ -144,8 +145,8 @@ export default function Attendance() {
         <Section title="Register walk-in guest">
           <Stack component="form" spacing={1.5} onSubmit={addWalkin}>
             <Grid cols={{ xs: 1, sm: 2 }} gap={1.5}>
-              <TextField size="small" label="Guest name" value={walk.fullName} onChange={(e) => setWalk({ ...walk, fullName: e.target.value })} required />
-              <TextField size="small" label="Phone number" value={walk.phoneNumber} onChange={(e) => setWalk({ ...walk, phoneNumber: e.target.value })} />
+              <NameField size="small" label="Guest name" value={walk.fullName} onChange={(e) => setWalk({ ...walk, fullName: e.target.value })} required />
+              <PhoneField size="small" label="Phone number" value={walk.phoneNumber} onChange={(e) => setWalk({ ...walk, phoneNumber: e.target.value })} />
               <TextField size="small" select label="Payment" value={walk.method} onChange={(e) => setWalk({ ...walk, method: e.target.value })}>{PAY_METHODS.map((m) => <MenuItem key={m} value={m}>{m === 'Unpaid' ? 'Collect later' : m}</MenuItem>)}</TextField>
               {['GCash', 'Card', 'Other'].includes(walk.method) ? <TextField size="small" label="Reference number" value={walk.referenceNumber} onChange={(e) => setWalk({ ...walk, referenceNumber: e.target.value })} /> : <TextField size="small" label="Email (optional)" type="email" value={walk.email} onChange={(e) => setWalk({ ...walk, email: e.target.value })} />}
             </Grid>

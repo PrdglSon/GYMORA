@@ -5,6 +5,7 @@ import { ah, ApiError, requireFields, notFound, paging, escapeRegex } from '../u
 import { settlePayment, cancelMembership } from '../utils/membership.js';
 import { notify, toMember } from '../utils/notify.js';
 import { audit } from '../utils/audit.js';
+import { isPersonName } from '../utils/validators.js';
 import { emitToStaff } from '../utils/socket.js';
 import { startOfDay, addDays, endOfDay } from '../utils/dates.js';
 
@@ -56,6 +57,7 @@ r.get('/summary', ah(async (req, res) => {
 
 r.post('/', ah(async (req, res) => {
   requireFields(req.body, ['payerName', 'amount', 'description']);
+  if (!isPersonName(req.body.payerName)) throw new ApiError(400, 'Payer name can only contain letters.');
   const p = await Payment.create({ gym: req.gymId, receiptNo: await nextCode(req.gymId, 'receipt'), paymentType: 'Other', payerName: req.body.payerName, member: req.body.memberId || undefined, description: req.body.description, amount: Number(req.body.amount), paymentMethod: req.body.paymentMethod || 'Cash', referenceNumber: req.body.referenceNumber, status: 'Paid', paymentDate: new Date(), recordedBy: req.account._id });
   audit(req, 'Payment and Billing', `Recorded ${p.receiptNo}: ${p.description} ₱${p.amount}`);
   emitToStaff(req.gymId, 'payments:update', {});

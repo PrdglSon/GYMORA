@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { applyContactRules } from '../utils/validators.js';
 import crypto from 'crypto';
 
 const settingsSchema = new mongoose.Schema(
@@ -46,5 +47,7 @@ const gymSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+applyContactRules(gymSchema, { phones: ['phoneNumber'], names: [] });
 
 export default mongoose.model('Gym', gymSchema);

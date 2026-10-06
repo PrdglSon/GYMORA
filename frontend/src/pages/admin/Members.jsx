@@ -13,6 +13,7 @@ import { usePageTitle } from '../../components/AppShell';
 import { ConfirmDialog, DataState, Grid, Section, StatCard, StatusChip, UserAvatar, Empty } from '../../components/ui';
 import { fdate, fdm, fdt, peso, peso0 } from '../../utils/format';
 import { brand } from '../../theme';
+import { NameField, PhoneField } from '../../components/ContactFields';
 
 const GOALS = ['Weight Loss', 'Muscle Gain', 'Strength', 'General Fitness', 'Endurance', 'Flexibility'];
 const GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'];
@@ -66,10 +67,10 @@ function AddMemberDialog({ open, onClose, plans, onSaved }) {
         ) : (
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Grid cols={{ xs: 1, sm: 2 }}>
-              <TextField label="First name" value={f.firstName} onChange={set('firstName')} required />
-              <TextField label="Last name" value={f.lastName} onChange={set('lastName')} required />
+              <NameField label="First name" value={f.firstName} onChange={set('firstName')} required />
+              <NameField label="Last name" value={f.lastName} onChange={set('lastName')} required />
               <TextField label="Email" type="email" value={f.email} onChange={set('email')} required />
-              <TextField label="Phone number" value={f.phoneNumber} onChange={set('phoneNumber')} required />
+              <PhoneField label="Phone number" value={f.phoneNumber} onChange={set('phoneNumber')} required />
               <TextField select label="Gender" value={f.gender} onChange={set('gender')}>{GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
               <TextField label="Birthdate" type="date" value={f.birthdate} onChange={set('birthdate')} InputLabelProps={{ shrink: true }} />
               <TextField select label="Fitness goal" value={f.fitnessGoal} onChange={set('fitnessGoal')}>{GOALS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
@@ -227,10 +228,10 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
               {tab === 1 && edit && (
                 <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); run(() => api.patch(`/members/${id}`, { ...edit, heightCm: edit.heightCm || undefined, birthdate: edit.birthdate || undefined, assignedCoach: edit.assignedCoach || null }), 'Member updated'); }}>
                   <Grid cols={{ xs: 1, sm: 2 }}>
-                    <TextField label="First name" value={edit.firstName} onChange={sE('firstName')} required />
-                    <TextField label="Last name" value={edit.lastName} onChange={sE('lastName')} required />
+                    <NameField label="First name" value={edit.firstName} onChange={sE('firstName')} required />
+                    <NameField label="Last name" value={edit.lastName} onChange={sE('lastName')} required />
                     <TextField label="Email" type="email" value={edit.email} onChange={sE('email')} required />
-                    <TextField label="Phone number" value={edit.phoneNumber} onChange={sE('phoneNumber')} />
+                    <PhoneField label="Phone number" value={edit.phoneNumber} onChange={sE('phoneNumber')} />
                     <TextField select label="Gender" value={edit.gender} onChange={sE('gender')}>{GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
                     <TextField label="Birthdate" type="date" value={edit.birthdate} onChange={sE('birthdate')} InputLabelProps={{ shrink: true }} />
                     <TextField select label="Fitness goal" value={edit.fitnessGoal} onChange={sE('fitnessGoal')}>{GOALS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>

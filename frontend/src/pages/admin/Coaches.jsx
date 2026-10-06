@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import { useSocketEvent } from '../../context/SocketContext';
 import { usePageTitle } from '../../components/AppShell';
 import { DataState, Grid, Section, StatCard, StatusChip, UserAvatar, ConfirmDialog, Empty } from '../../components/ui';
+import { NameField, PhoneField } from '../../components/ContactFields';
 
 const blank = { firstName: '', lastName: '', email: '', phoneNumber: '', certification: '', experience: 0, bio: '', specializations: [], activeStatus: 'Active' };
 
@@ -55,10 +56,10 @@ function CoachDialog({ open, coach, onClose, onSaved }) {
         ) : f && (
           <Stack spacing={2} sx={{ mt: 1 }}>
             <Grid cols={{ xs: 1, sm: 2 }}>
-              <TextField label="First name" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} required />
-              <TextField label="Last name" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} required />
+              <NameField label="First name" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} required />
+              <NameField label="Last name" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} required />
               <TextField label="Email (login)" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} required />
-              <TextField label="Phone number" value={f.phoneNumber} onChange={(e) => setF({ ...f, phoneNumber: e.target.value })} />
+              <PhoneField label="Phone number" value={f.phoneNumber} onChange={(e) => setF({ ...f, phoneNumber: e.target.value })} />
               <TextField label="Certification" value={f.certification} onChange={(e) => setF({ ...f, certification: e.target.value })} />
               <TextField label="Years of experience" type="number" value={f.experience} onChange={(e) => setF({ ...f, experience: e.target.value })} inputProps={{ min: 0 }} />
             </Grid>

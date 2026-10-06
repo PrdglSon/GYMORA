@@ -8,6 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { usePageTitle } from '../../components/AppShell';
 import { DataState, Grid, Section, StatusChip, UserAvatar } from '../../components/ui';
 import { fdate } from '../../utils/format';
+import { NameField, PhoneField } from '../../components/ContactFields';
 
 function CheckInQr() {
   const [qr, setQr] = useState(null);
@@ -208,9 +209,9 @@ export default function MemberProfile() {
             <Section title="Personal information">
               <Stack component="form" spacing={2} onSubmit={save}>
                 <Grid cols={{ xs: 1, sm: 2 }}>
-                  <TextField label="First name" value={f.firstName} onChange={set('firstName')} required />
-                  <TextField label="Last name" value={f.lastName} onChange={set('lastName')} required />
-                  <TextField label="Phone number" value={f.phoneNumber} onChange={set('phoneNumber')} />
+                  <NameField label="First name" value={f.firstName} onChange={set('firstName')} required />
+                  <NameField label="Last name" value={f.lastName} onChange={set('lastName')} required />
+                  <PhoneField label="Phone number" value={f.phoneNumber} onChange={set('phoneNumber')} />
                   <TextField label="Birthdate" type="date" value={f.birthdate} onChange={set('birthdate')} InputLabelProps={{ shrink: true }} />
                   <TextField select label="Gender" value={f.gender} onChange={set('gender')}>
                     {GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}

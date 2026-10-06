@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { applyContactRules } from '../utils/validators.js';
 
 const schema = new mongoose.Schema(
   {
@@ -12,5 +13,7 @@ const schema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+applyContactRules(schema, { phones: ['phoneNumber'], names: ['fullName'] });
 
 export default mongoose.model('WalkInGuest', schema);

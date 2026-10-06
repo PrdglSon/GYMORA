@@ -13,6 +13,7 @@ import { usePageTitle } from '../../components/AppShell';
 import { DataState, Grid, Section, StatCard, StatusChip, Empty } from '../../components/ui';
 import { fdate, fdt, peso, peso0 } from '../../utils/format';
 import { brand } from '../../theme';
+import { NameField } from '../../components/ContactFields';
 
 const TABS = [['all', 'All'], ['Membership', 'Membership'], ['Walk-in', 'Walk-in'], ['Other', 'Other'], ['Unpaid', 'Unpaid'], ['Void', 'Void']];
 const METHODS = ['Cash', 'GCash', 'Card', 'Other'];
@@ -203,7 +204,7 @@ export default function Billing() {
         <DialogTitle>Record other payment</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField label="Paid by" value={o.payerName} onChange={(e) => setO({ ...o, payerName: e.target.value })} required />
+            <NameField label="Paid by" value={o.payerName} onChange={(e) => setO({ ...o, payerName: e.target.value })} required />
             <TextField label="For" placeholder="e.g. Locker rental (October)" value={o.description} onChange={(e) => setO({ ...o, description: e.target.value })} required />
             <TextField label="Amount (₱)" type="number" value={o.amount} onChange={(e) => setO({ ...o, amount: e.target.value })} inputProps={{ min: 1, step: 0.01 }} required />
             <TextField select label="Payment method" value={o.paymentMethod} onChange={(e) => setO({ ...o, paymentMethod: e.target.value })}>{METHODS.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}</TextField>

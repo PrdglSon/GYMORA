@@ -6,6 +6,7 @@ import api, { errMsg } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Grid } from '../../components/ui';
 import { brand, DISPLAY_FONT } from '../../theme';
+import { NameField, PhoneField } from '../../components/ContactFields';
 
 export default function RegisterGym() {
   const navigate = useNavigate();
@@ -65,10 +66,10 @@ export default function RegisterGym() {
           <Grid cols={{ xs: 1, sm: 2 }}>
             <TextField label="Gym / business name" value={f.gymName} onChange={set('gymName')} required />
             <TextField label="City" value={f.city} onChange={set('city')} />
-            <TextField label="Your first name" value={f.firstName} onChange={set('firstName')} required />
-            <TextField label="Your last name" value={f.lastName} onChange={set('lastName')} required />
+            <NameField label="Your first name" value={f.firstName} onChange={set('firstName')} required />
+            <NameField label="Your last name" value={f.lastName} onChange={set('lastName')} required />
             <TextField label="Business email (your login)" type="email" value={f.email} onChange={set('email')} required />
-            <TextField label="Phone" value={f.phoneNumber} onChange={set('phoneNumber')} />
+            <PhoneField label="Phone" value={f.phoneNumber} onChange={set('phoneNumber')} />
             <TextField label="Password" type="password" value={f.password} onChange={set('password')} required inputProps={{ minLength: 8 }} helperText="At least 8 characters" />
             <TextField label="Address" value={f.address} onChange={set('address')} />
             <TextField select label="Estimated members" value={f.estimatedMembers} onChange={set('estimatedMembers')}>{['Under 100', '100–300', '300–1,000', '1,000+'].map((n) => <MenuItem key={n} value={n}>{n}</MenuItem>)}</TextField>

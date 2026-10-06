@@ -7,6 +7,7 @@ import Logo from '../../components/Logo';
 import GymBrand from '../../components/GymBrand';
 import { brand, DISPLAY_FONT } from '../../theme';
 import { initials, peso0 } from '../../utils/format';
+import { NameField, PhoneField } from '../../components/ContactFields';
 
 const keyName = (slug) => `gymora_kiosk_${slug}`;
 const readKey = (slug) => {
@@ -230,8 +231,8 @@ export default function Kiosk() {
             ) : (
               <Stack component="form" spacing={2} onSubmit={walkin}>
                 {title('Walk-in', 'guest')}
-                <TextField label="Full name" value={guest.fullName} onChange={(e) => setGuest({ ...guest, fullName: e.target.value })} required />
-                <TextField label="Phone number" value={guest.phoneNumber} onChange={(e) => setGuest({ ...guest, phoneNumber: e.target.value })} required />
+                <NameField label="Full name" value={guest.fullName} onChange={(e) => setGuest({ ...guest, fullName: e.target.value })} required />
+                <PhoneField label="Phone number" value={guest.phoneNumber} onChange={(e) => setGuest({ ...guest, phoneNumber: e.target.value })} required />
                 <Button type="submit" variant="contained" size="large" disabled={busy}>Register visit</Button>
                 <Typography variant="caption" color="text.secondary" textAlign="center">Pay the {peso0(gym.walkInFee)} day pass at the front desk.</Typography>
               </Stack>

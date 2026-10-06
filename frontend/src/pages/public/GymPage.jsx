@@ -10,6 +10,7 @@ import { PublicNav, PublicFooter } from './PublicLayout';
 import { DataState, Grid, Headline, StatusChip, UserAvatar, Progress, Empty } from '../../components/ui';
 import { peso0, ago, fday, hhmm12, isoDay } from '../../utils/format';
 import { brand } from '../../theme';
+import { NameField } from '../../components/ContactFields';
 
 const TABS = ['Home', 'Programs', 'Schedule', 'Coaches', 'Community', 'Membership', 'About'];
 const AVAIL_COLOR = { Available: 'green', 'In Session': 'amber', Unavailable: 'grey' };
@@ -286,7 +287,7 @@ export default function GymPage() {
                     <CardContent>
                       <Typography variant="h6" sx={{ mb: 2 }}>Send an inquiry</Typography>
                       <Stack spacing={2}>
-                        <TextField label="Your name" value={inq.fullName} onChange={set('fullName')} required />
+                        <NameField label="Your name" value={inq.fullName} onChange={set('fullName')} required />
                         <TextField label="Email or phone" value={inq.contact} onChange={set('contact')} required />
                         <TextField select label="Type" value={inq.inquiryType} onChange={set('inquiryType')}>
                           <MenuItem value="Inquiry">General inquiry</MenuItem>

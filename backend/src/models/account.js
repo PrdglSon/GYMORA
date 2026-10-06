@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { applyContactRules } from '../utils/validators.js';
 
 export const accountFields = {
   email: { type: String, required: true, lowercase: true, trim: true },
@@ -13,6 +14,7 @@ export const accountFields = {
 };
 
 export function applyAccount(schema) {
+  applyContactRules(schema, { phones: ['phoneNumber'], names: ['firstName', 'lastName'] });
   schema.virtual('fullName').get(function fullName() {
     return `${this.firstName} ${this.lastName}`.trim();
   });

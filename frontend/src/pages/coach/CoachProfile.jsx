@@ -8,6 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { usePageTitle } from '../../components/AppShell';
 import { DataState, Grid, Section, StatusChip, UserAvatar } from '../../components/ui';
 import { brand } from '../../theme';
+import { NameField, PhoneField } from '../../components/ContactFields';
 
 export default function CoachProfile() {
   usePageTitle('My Profile', 'Manage your personal information and specializations.');
@@ -86,9 +87,9 @@ export default function CoachProfile() {
           <Section title="Profile & specializations">
             <Stack component="form" spacing={2} onSubmit={save}>
               <Grid cols={{ xs: 1, sm: 2 }}>
-                <TextField label="First name" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} required />
-                <TextField label="Last name" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} required />
-                <TextField label="Phone number" value={f.phoneNumber} onChange={(e) => setF({ ...f, phoneNumber: e.target.value })} />
+                <NameField label="First name" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} required />
+                <NameField label="Last name" value={f.lastName} onChange={(e) => setF({ ...f, lastName: e.target.value })} required />
+                <PhoneField label="Phone number" value={f.phoneNumber} onChange={(e) => setF({ ...f, phoneNumber: e.target.value })} />
                 <TextField label="Years of experience" type="number" value={f.experience} onChange={(e) => setF({ ...f, experience: e.target.value })} inputProps={{ min: 0, max: 60 }} />
               </Grid>
               <TextField label="Certification" value={f.certification} onChange={(e) => setF({ ...f, certification: e.target.value })} placeholder="e.g. NASM-CPT, PRC Fitness Instructor" />

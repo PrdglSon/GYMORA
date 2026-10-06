@@ -1,5 +1,6 @@
 import { Attendance, Payment, WalkInGuest, nextCode } from '../models/index.js';
 import { canCheckIn } from './membership.js';
+import { normalizePhone } from './validators.js';
 import { evaluateBadges } from './rules.js';
 import { emitToStaff, emitToGym, emitToAccount } from './socket.js';
 import { startOfDay } from './dates.js';
@@ -64,6 +65,7 @@ export async function toggleMemberVisit({ gym, settings, member, method, recorde
 }
 
 export async function recordWalkIn({ gym, settings, fullName, phoneNumber, email, method = 'Cash', paid = true, via = 'Front Desk', recordedBy, referenceNumber }) {
+  phoneNumber = normalizePhone(phoneNumber);
   let guest = phoneNumber ? await WalkInGuest.findOne({ gym, phoneNumber }) : null;
   if (!guest) guest = await WalkInGuest.create({ gym, fullName, phoneNumber, email });
   guest.visits += 1;

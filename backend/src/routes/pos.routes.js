@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Product, Inventory, PosTransaction, PosItem, Payment, Member, MembershipPlan, nextCode } from '../models/index.js';
 import { protect, allow, STAFF } from '../middleware/auth.js';
+import { isPersonName } from '../utils/validators.js';
 import { ah, ApiError, requireFields, pick, notFound, escapeRegex, paging } from '../utils/http.js';
 import { sellMembership } from '../utils/membership.js';
 import { notify, notifyStaff, toMember } from '../utils/notify.js';
@@ -113,6 +114,7 @@ r.post('/transactions', ah(async (req, res) => {
   const productAmount = round2(lines.filter((l) => l.itemType === 'Product').reduce((a, l) => a + l.price * l.quantity, 0) * ratio);
   const tendered = paymentMethod === 'Cash' ? Number(req.body.amountTendered) : totalAmount;
   if (paymentMethod === 'Cash' && !(tendered >= totalAmount)) throw new ApiError(400, 'Amount tendered is less than the total.');
+  if (!member && req.body.customerName && !isPersonName(req.body.customerName)) throw new ApiError(400, 'Customer name can only contain letters.');
   const tx = await PosTransaction.create({
     gym: req.gymId, transactionNo: await nextCode(req.gymId, 'pos'), member: member?._id, customerName: member ? `${member.firstName} ${member.lastName}` : req.body.customerName || 'Walk-in',
     subtotal, discountRate, discountLabel: req.body.discountLabel, discount, totalAmount, productAmount, paymentMethod, referenceNumber: req.body.referenceNumber, amountTendered: tendered, change: round2(tendered - totalAmount), cashier: req.account._id,

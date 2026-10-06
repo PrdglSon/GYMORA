@@ -5,6 +5,7 @@ import AuthLayout from '../auth/AuthLayout';
 import api, { errMsg } from '../../api';
 import useFetch from '../../hooks/useFetch';
 import { Grid } from '../../components/ui';
+import { NameField, PhoneField } from '../../components/ContactFields';
 
 const EMPTY = { firstName: '', lastName: '', email: '', phoneNumber: '', password: '', confirm: '' };
 
@@ -52,10 +53,10 @@ export default function StaffSignup() {
         <Stack component="form" spacing={2} onSubmit={submit}>
           {error && <Alert severity="error">{error}</Alert>}
           <Grid cols={{ xs: 1, sm: 2 }}>
-            <TextField label="First name" value={f.firstName} onChange={set('firstName')} required />
-            <TextField label="Last name" value={f.lastName} onChange={set('lastName')} required />
+            <NameField label="First name" value={f.firstName} onChange={set('firstName')} required />
+            <NameField label="Last name" value={f.lastName} onChange={set('lastName')} required />
             <TextField label="Email (your login)" type="email" value={f.email} onChange={set('email')} required />
-            <TextField label="Phone number" value={f.phoneNumber} onChange={set('phoneNumber')} required />
+            <PhoneField label="Phone number" value={f.phoneNumber} onChange={set('phoneNumber')} required />
             <TextField label="Password" type="password" value={f.password} onChange={set('password')} required inputProps={{ minLength: 8 }} helperText="At least 8 characters" autoComplete="new-password" />
             <TextField label="Confirm password" type="password" value={f.confirm} onChange={set('confirm')} required autoComplete="new-password" />
           </Grid>
