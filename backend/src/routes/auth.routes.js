@@ -104,7 +104,11 @@ r.post('/forgot', limiter, ah(async (req, res) => {
     a.resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
     a.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000);
     await a.save();
-    sendEmail({ to: a.email, subject: 'Reset your GYMORA password', text: `Reset your password within 1 hour:\n${env.siteUrl(req)}/reset-password?type=${portal.model}&token=${token}` });
+    const gym = a.gym ? await Gym.findById(a.gym).select('name slug') : null;
+    const loginPortal = portal.model === 'StaffAdmin' ? (a.role === 'admin' ? 'admin' : 'staff') : req.body.portal;
+    const link = `${env.siteUrl(req)}/reset-password?type=${portal.model}&portal=${loginPortal}${gym ? `&gym=${gym.slug}` : ''}&token=${token}`;
+    const where = gym ? ` at ${gym.name}` : '';
+    sendEmail({ to: a.email, subject: `Reset your GYMORA password${where}`, text: `Hi ${a.firstName || ''},\n\nWe received a request to reset the password of your ${({ admin: 'administrator', staff: 'staff', coach: 'coach', member: 'member', platform: 'GYMORA platform owner' })[loginPortal]} account${where}.\n\nSet a new password within 1 hour:\n${link}\n\nIf you did not ask for this, you can ignore this email.` });
   }
   res.json({ message: 'If that email is registered, a reset link is on its way.' });
 }));

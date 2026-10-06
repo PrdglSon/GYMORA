@@ -22,7 +22,7 @@ export default function ForgotPassword() {
   };
   return (
     <AuthLayout line1="Forgot your" accent="password?" sub="Enter your email and we will send you a link to set a new one.">
-      <Link component={RouterLink} to={`/${portal}/login`} underline="hover" variant="body2">← Back to login</Link>
+      <Link component={RouterLink} to={`/${portal}/login${params.get('gym') ? `?gym=${params.get('gym')}` : ''}`} underline="hover" variant="body2">← Back to login</Link>
       <Typography variant="h4" sx={{ my: 2 }}>Reset password</Typography>
       {msg ? <Alert severity="success">{msg}</Alert> : (
         <Stack component="form" spacing={2} onSubmit={submit}>

@@ -69,7 +69,7 @@ export default function PortalLogin({ portal }) {
           label="Password" type={show ? 'text' : 'password'} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required autoComplete="current-password"
           InputProps={{ endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShow(!show)} aria-label={show ? 'Hide password' : 'Show password'} edge="end">{show ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment> }}
         />
-        <Box textAlign="right"><Link component={RouterLink} to={`/forgot-password?portal=${portal}`} variant="body2" fontWeight={700} underline="hover">Forgot password?</Link></Box>
+        <Box textAlign="right"><Link component={RouterLink} to={`/forgot-password?portal=${portal}${gymSlug ? `&gym=${gymSlug}` : ''}`} variant="body2" fontWeight={700} underline="hover">Forgot password?</Link></Box>
         <Button type="submit" size="large" variant="contained" disabled={busy}>Login</Button>
         <Typography variant="caption" color="text.secondary" textAlign="center">{copy.note}</Typography>
         {gymSlug && ['member', 'coach', 'staff'].includes(portal) && (

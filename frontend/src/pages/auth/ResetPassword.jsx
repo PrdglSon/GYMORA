@@ -9,6 +9,9 @@ const LOGIN = { StaffAdmin: '/login', Member: '/member/login', Coach: '/coach/lo
 export default function ResetPassword() {
   const [params] = useSearchParams();
   const type = params.get('type') || 'Member';
+  const portal = params.get('portal');
+  const gym = params.get('gym');
+  const loginTo = portal ? `/${portal}/login${gym ? `?gym=${gym}` : ''}` : LOGIN[type] || '/login';
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [msg, setMsg] = useState('');
@@ -27,7 +30,7 @@ export default function ResetPassword() {
     <AuthLayout line1="Set a new" accent="password" sub="Choose a password with at least 8 characters.">
       <Typography variant="h4" sx={{ mb: 2 }}>New password</Typography>
       {msg ? (
-        <Alert severity="success" action={<Link component={RouterLink} to={LOGIN[type] || '/login'} fontWeight={700}>Log in</Link>}>{msg}</Alert>
+        <Alert severity="success" action={<Link component={RouterLink} to={loginTo} fontWeight={700}>Log in</Link>}>{msg}</Alert>
       ) : (
         <Stack component="form" spacing={2} onSubmit={submit}>
           {error && <Alert severity="error">{error}</Alert>}
