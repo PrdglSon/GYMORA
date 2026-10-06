@@ -89,7 +89,7 @@ r.post('/register-gym', limiter, upload.single('logo'), ah(async (req, res) => {
       console.error('[logo]', err.message);
     }
   }
-  sendEmail({ to: admin.email, subject: `Welcome to GYMORA, ${gym.name}`, text: status === 'active' ? `Your gym is ready. Log in at ${env.clientUrl}/admin/login` : 'We received your registration. The GYMORA team will review it soon.' });
+  sendEmail({ to: admin.email, subject: `Welcome to GYMORA, ${gym.name}`, text: status === 'active' ? `Your gym is ready. Log in at ${env.siteUrl(req)}/admin/login` : 'We received your registration. The GYMORA team will review it soon.' });
   if (status !== 'active') return res.status(201).json({ pending: true, message: 'Thanks! Your gym is waiting for approval. We will email you when it is live.' });
   res.status(201).json({ token: signToken('StaffAdmin', admin), ...(await sessionPayload('StaffAdmin', admin)) });
 }));
@@ -104,7 +104,7 @@ r.post('/forgot', limiter, ah(async (req, res) => {
     a.resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
     a.resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000);
     await a.save();
-    sendEmail({ to: a.email, subject: 'Reset your GYMORA password', text: `Reset your password within 1 hour:\n${env.clientUrl}/reset-password?type=${portal.model}&token=${token}` });
+    sendEmail({ to: a.email, subject: 'Reset your GYMORA password', text: `Reset your password within 1 hour:\n${env.siteUrl(req)}/reset-password?type=${portal.model}&token=${token}` });
   }
   res.json({ message: 'If that email is registered, a reset link is on its way.' });
 }));

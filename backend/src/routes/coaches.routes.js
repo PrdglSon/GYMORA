@@ -146,7 +146,7 @@ r.post('/:id/approve', allow('admin'), ah(async (req, res) => {
   coach.status = 'active';
   coach.activeStatus = 'Active';
   await coach.save();
-  sendEmail({ to: coach.email, subject: `${req.gym.name}: your coach account is approved`, text: `Hi ${coach.firstName},\n\nYour coach account at ${req.gym.name} is approved. Log in here: ${env.clientUrl}/coach/login?gym=${req.gym.slug}` });
+  sendEmail({ to: coach.email, subject: `${req.gym.name}: your coach account is approved`, text: `Hi ${coach.firstName},\n\nYour coach account at ${req.gym.name} is approved. Log in here: ${env.siteUrl(req)}/coach/login?gym=${req.gym.slug}` });
   audit(req, 'User and Access Control', `Approved coach account for ${coach.firstName} ${coach.lastName}`);
   res.json(coachDTO(coach, (await CoachSpecialization.find({ coach: coach._id })).map((s) => s.specializationName)));
 }));

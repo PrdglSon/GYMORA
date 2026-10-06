@@ -136,7 +136,7 @@ r.post('/', allow(...STAFF), ah(async (req, res) => {
   sendEmail({
     to: member.email,
     subject: `Welcome to ${req.gym.name}`,
-    text: `Hi ${member.firstName},\n\nYour member account at ${req.gym.name} is ready.\n\nMember code: ${member.memberCode}\nLogin: ${env.clientUrl}/member/login?gym=${req.gym.slug}\nEmail: ${member.email}\n${req.body.password ? 'Password: the one you gave at the front desk' : `Temporary password: ${password}`}\n\nYou can change your password after logging in, or use "Forgot password?" on the login page.`,
+    text: `Hi ${member.firstName},\n\nYour member account at ${req.gym.name} is ready.\n\nMember code: ${member.memberCode}\nLogin: ${env.siteUrl(req)}/member/login?gym=${req.gym.slug}\nEmail: ${member.email}\n${req.body.password ? 'Password: the one you gave at the front desk' : `Temporary password: ${password}`}\n\nYou can change your password after logging in, or use "Forgot password?" on the login page.`,
   });
   audit(req, 'Member Management', `Registered ${member.firstName} ${member.lastName} (${member.memberCode})`);
   res.status(201).json({ member: memberDTO(member, req.gym.settings), payment, temporaryPassword: req.body.password ? undefined : password });

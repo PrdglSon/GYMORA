@@ -50,6 +50,10 @@ export const env = {
     const o = origin.replace(/\/+$/, '');
     return this.allowedOrigins.includes(o) || /^https:\/\/gymora[a-z0-9-]*\.vercel\.app$/i.test(o);
   },
+  siteUrl(req) {
+    const origin = String(req?.headers?.origin || '').replace(/\/+$/, '');
+    return origin && /^https?:\/\//.test(origin) && this.isAllowedOrigin(origin) ? origin : this.clientUrl;
+  },
   autoApproveGyms: String(process.env.AUTO_APPROVE_GYMS ?? 'true') === 'true',
   platformAdminEmail: process.env.PLATFORM_ADMIN_EMAIL,
   platformAdminPassword: process.env.PLATFORM_ADMIN_PASSWORD,

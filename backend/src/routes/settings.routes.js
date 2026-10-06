@@ -87,7 +87,7 @@ r.post('/staff/:id/approve', allow('admin'), ah(async (req, res) => {
   if (!s) throw notFound('Pending staff account');
   s.status = 'active';
   await s.save();
-  sendEmail({ to: s.email, subject: `${req.gym.name}: your staff account is approved`, text: `Hi ${s.firstName},\n\nYour staff account at ${req.gym.name} is approved. Log in here: ${env.clientUrl}/staff/login?gym=${req.gym.slug}` });
+  sendEmail({ to: s.email, subject: `${req.gym.name}: your staff account is approved`, text: `Hi ${s.firstName},\n\nYour staff account at ${req.gym.name} is approved. Log in here: ${env.siteUrl(req)}/staff/login?gym=${req.gym.slug}` });
   audit(req, 'User and Access Control', `Approved staff account for ${s.firstName} ${s.lastName}`);
   res.json(staffDTO(s));
 }));

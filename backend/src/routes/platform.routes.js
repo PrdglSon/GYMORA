@@ -21,7 +21,7 @@ r.patch('/gyms/:id', ah(async (req, res) => {
   if (!gym) throw notFound('Gym');
   if (['active', 'suspended', 'pending'].includes(req.body.status)) gym.status = req.body.status;
   await gym.save();
-  if (req.body.status === 'active' && gym.owner) sendEmail({ to: gym.owner.email, subject: `${gym.name} is live on GYMORA`, text: `Your gym was approved. Log in at ${env.clientUrl}/admin/login` });
+  if (req.body.status === 'active' && gym.owner) sendEmail({ to: gym.owner.email, subject: `${gym.name} is live on GYMORA`, text: `Your gym was approved. Log in at ${env.siteUrl(req)}/admin/login` });
   res.json(gym);
 }));
 
