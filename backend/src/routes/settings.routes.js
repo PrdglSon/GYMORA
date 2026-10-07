@@ -11,6 +11,7 @@ import { seal } from '../utils/secretBox.js';
 import { audit } from '../utils/audit.js';
 import { staffDTO } from '../utils/format.js';
 import { runDailyJobs } from '../jobs/daily.js';
+import { removeStaff } from '../utils/accountRemoval.js';
 
 const r = Router();
 r.use(protect, allow(...STAFF));
@@ -135,6 +136,19 @@ r.post('/staff/:id/reject', allow('admin'), ah(async (req, res) => {
   sendEmail({ to: s.email, subject: `${req.gym.name}: staff account request`, text: `Hi ${s.firstName},\n\nYour staff account request at ${req.gym.name} was not approved. Please contact the gym for details.` });
   audit(req, 'User and Access Control', `Rejected staff account request from ${s.firstName} ${s.lastName}`);
   res.json({ ok: true });
+}));
+
+r.delete('/staff/:id', allow('admin'), ah(async (req, res) => {
+  const s = await StaffAdmin.findOne({ _id: req.params.id, gym: req.gymId });
+  if (!s) throw notFound('Staff account');
+  if (String(s._id) === String(req.account._id)) throw new ApiError(400, "You can't delete your own account.");
+  if (req.gym.owner && String(req.gym.owner) === String(s._id)) throw new ApiError(400, "The gym owner's account can't be deleted.");
+  if (s.status !== 'inactive') throw new ApiError(400, 'Deactivate the account first, then delete it.');
+  if (String(req.body?.confirm || '').trim().toLowerCase() !== String(s.email).toLowerCase()) throw new ApiError(400, `Type ${s.email} to confirm.`);
+  const label = `${s.firstName} ${s.lastName} (${s.email})`;
+  await removeStaff(s);
+  audit(req, 'User and Access Control', `Deleted staff account ${label}`);
+  res.json({ message: `${label} was deleted. Past sales and payments they handled stay in your records.` });
 }));
 
 r.post('/staff/:id/reset-password', allow('admin'), ah(async (req, res) => {

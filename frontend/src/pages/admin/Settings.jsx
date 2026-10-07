@@ -10,6 +10,7 @@ import { DataState, Grid, Section, StatusChip, ConfirmDialog, Empty } from '../.
 import { peso0, fdt } from '../../utils/format';
 import { brand } from '../../theme';
 import { NameField, PhoneField } from '../../components/ContactFields';
+import DeleteAccountDialog from '../../components/DeleteAccountDialog';
 
 const GOALS = ['Any', 'Weight Loss', 'Muscle Gain', 'Strength', 'General Fitness', 'Endurance', 'Flexibility'];
 const ROLE_LABEL = { admin: 'Administrator', receptionist: 'Staff' };
@@ -329,7 +330,18 @@ function Staff() {
   const [reset, setReset] = useState(null);
   const [resetTemp, setResetTemp] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [del, setDel] = useState(null);
   const me = (x) => String(x._id) === String(account?._id);
+  const doDelete = async (confirm) => {
+    try {
+      const { data } = await api.delete(`/settings/staff/${del._id}`, { data: { confirm } });
+      toast(data.message || 'Staff account deleted');
+      setDel(null);
+      s.reload();
+    } catch (err) {
+      toast(errMsg(err), 'error');
+    }
+  };
   const add = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -414,6 +426,7 @@ function Staff() {
                     <Stack direction="row" spacing={1}>
                       {!me(x) && <Button size="small" variant="outlined" onClick={() => update(x, { status: x.status === 'active' ? 'inactive' : 'active' })}>{x.status === 'active' ? 'Deactivate' : 'Reactivate'}</Button>}
                       {!me(x) && <Button size="small" onClick={() => setReset(x)} sx={{ whiteSpace: 'nowrap' }}>Reset password</Button>}
+                      {!me(x) && x.status === 'inactive' && <Button size="small" color="error" startIcon={<DeleteOutline />} onClick={() => setDel(x)} sx={{ whiteSpace: 'nowrap' }}>Delete</Button>}
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -422,6 +435,7 @@ function Staff() {
           </Table>
         </Box>
       </DataState>
+      <DeleteAccountDialog open={!!del} kind="staff" title={`Delete ${del?.name || 'staff account'}?`} expect={del?.email} onClose={() => setDel(null)} onConfirm={doDelete} />
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth PaperProps={{ component: 'form', onSubmit: add }}>
         <DialogTitle>Add staff account</DialogTitle>
         <DialogContent>

@@ -25,7 +25,9 @@ export default function DeleteAccountDialog({ open, title, expect, kind = 'membe
         <Typography variant="body2" sx={{ mb: 2 }}>
           {kind === 'member'
             ? 'Payments, attendance and sales stay in your records as "Deleted member" so reports and receipts stay correct. Progress, badges, enrollments and messages are removed.'
-            : 'Past sessions, payments and reports stay as "Deleted coach". Upcoming bookings are cancelled and members are notified. Programs stay without a coach until you assign a new one.'}
+            : kind === 'staff'
+              ? 'Sales, payments and stock changes they handled stay in your records so reports and receipts stay correct. Their posts and replies show as "Deleted staff". They can no longer log in.'
+              : 'Past sessions, payments and reports stay as "Deleted coach". Upcoming bookings are cancelled and members are notified. Programs stay without a coach until you assign a new one.'}
         </Typography>
         <TextField fullWidth autoFocus label={`Type ${expect} to confirm`} value={text} onChange={(e) => setText(e.target.value)} />
       </DialogContent>

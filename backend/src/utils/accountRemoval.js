@@ -1,12 +1,13 @@
 import {
   Member, Coach, CoachSpecialization, Payment, Attendance, PosTransaction, Booking, Enrollment, FitnessProgress, Achievement,
-  Notification, Message, CommunityPost, IncidentReport, Inquiry, FitnessProgram, ProgramSchedule, OPEN_BOOKING,
+  Notification, Message, StaffAdmin, CommunityPost, IncidentReport, Inquiry, FitnessProgram, ProgramSchedule, OPEN_BOOKING,
 } from '../models/index.js';
 import { notify, toMember } from './notify.js';
 import { startOfDay } from './dates.js';
 
 const DELETED_MEMBER = 'Deleted member';
 const DELETED_COACH = 'Deleted coach';
+const DELETED_STAFF = 'Deleted staff';
 
 async function renameAuthor(gym, id, label) {
   await CommunityPost.updateMany({ gym, author: id }, { $set: { authorName: label } });
@@ -50,4 +51,11 @@ export async function removeCoach(coach) {
   await Message.deleteMany({ gym, coach: id });
   await renameAuthor(gym, id, DELETED_COACH);
   await Coach.deleteOne({ _id: id });
+}
+
+export async function removeStaff(staff) {
+  const gym = staff.gym;
+  const id = staff._id;
+  await renameAuthor(gym, id, DELETED_STAFF);
+  await StaffAdmin.deleteOne({ _id: id });
 }
