@@ -6,6 +6,7 @@ import { startOfDay, addDays, hhmmToMinutes } from '../utils/dates.js';
 import { emitToStaff } from '../utils/socket.js';
 import { closeOpenVisitsAtClosing } from '../utils/attendance.js';
 import { expireOldBookings } from '../routes/bookings.routes.js';
+import { reconcileOnlinePayments } from '../routes/onlinePayments.routes.js';
 import { env } from '../config/env.js';
 
 async function recentlySent(type, id, title, days) {
@@ -78,6 +79,7 @@ export async function runClosingCheckout() {
 
 export function scheduleJobs() {
   cron.schedule('*/10 * * * *', () => runClosingCheckout().catch((e) => console.error('[jobs]', e)), { timezone: process.env.TZ });
+  cron.schedule('*/5 * * * *', () => reconcileOnlinePayments().catch((e) => console.error('[paymongo]', e.message)), { timezone: process.env.TZ });
   if (!cron.validate(env.dailyJobCron)) {
     console.warn(`Invalid DAILY_JOB_CRON "${env.dailyJobCron}". Scheduled jobs are off.`);
     return;

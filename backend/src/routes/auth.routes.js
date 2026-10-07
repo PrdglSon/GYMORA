@@ -18,7 +18,8 @@ export function publicGym(g) {
   if (!g) return null;
   const { settings = {}, ...rest } = g.toObject ? g.toObject() : g;
   const { kioskKey, ...safe } = settings;
-  return { ...rest, settings: safe };
+  const { paymongo, ...base } = rest;
+  return { ...base, settings: safe, paymongo: { enabled: !!paymongo?.enabled, methods: paymongo?.methods || [] } };
 }
 
 export async function sessionPayload(type, account) {

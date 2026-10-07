@@ -6,6 +6,8 @@ import { ah, ApiError, requireFields, pick, notFound } from '../utils/http.js';
 import { upload, saveFile } from '../utils/upload.js';
 import { sendEmail } from '../utils/email.js';
 import { env } from '../config/env.js';
+import { keyMode, testKey, PAYMONGO_METHODS } from '../utils/paymongo.js';
+import { seal } from '../utils/secretBox.js';
 import { audit } from '../utils/audit.js';
 import { staffDTO } from '../utils/format.js';
 import { runDailyJobs } from '../jobs/daily.js';
@@ -43,6 +45,40 @@ r.delete('/logo', allow('admin'), ah(async (req, res) => {
   await gym.save();
   audit(req, 'System Settings', 'Removed logo');
   res.json(gym);
+}));
+
+r.put('/paymongo', allow('admin'), ah(async (req, res) => {
+  const gym = await Gym.findById(req.gymId).select('+paymongo.secretKeyEnc');
+  const key = String(req.body.secretKey || '').trim();
+  if (key) {
+    const mode = keyMode(key);
+    if (!mode || !/^sk_(test|live)_[A-Za-z0-9]+$/.test(key)) throw new ApiError(400, 'Paste the PayMongo secret key. It starts with sk_test_ or sk_live_.');
+    await testKey(key);
+    gym.paymongo.secretKeyEnc = seal(key);
+    gym.paymongo.mode = mode;
+    gym.paymongo.last4 = key.slice(-4);
+    gym.paymongo.configuredAt = new Date();
+  }
+  if (Array.isArray(req.body.methods)) {
+    const methods = req.body.methods.filter((m) => PAYMONGO_METHODS.includes(m));
+    if (!methods.length) throw new ApiError(400, 'Choose at least one payment method.');
+    gym.paymongo.methods = methods;
+  }
+  if (req.body.enabled !== undefined) {
+    if (req.body.enabled && !gym.paymongo.secretKeyEnc) throw new ApiError(400, 'Add your PayMongo secret key first.');
+    gym.paymongo.enabled = !!req.body.enabled;
+  }
+  await gym.save();
+  audit(req, 'System Settings', `Updated online payments (${gym.paymongo.enabled ? `on, ${gym.paymongo.mode} mode` : 'off'})`);
+  res.json(await Gym.findById(req.gymId));
+}));
+
+r.delete('/paymongo', allow('admin'), ah(async (req, res) => {
+  const gym = await Gym.findById(req.gymId).select('+paymongo.secretKeyEnc');
+  gym.paymongo = { enabled: false, methods: gym.paymongo?.methods?.length ? gym.paymongo.methods : ['card', 'gcash', 'paymaya'] };
+  await gym.save();
+  audit(req, 'System Settings', 'Removed PayMongo keys');
+  res.json(await Gym.findById(req.gymId));
 }));
 
 r.post('/kiosk-key', allow('admin'), ah(async (req, res) => {

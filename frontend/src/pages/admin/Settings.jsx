@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, Switch, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
 import DeleteOutline from '@mui/icons-material/DeleteOutline';
-import api, { errMsg, fileUrl } from '../../api';
+import api, { API_URL, errMsg, fileUrl } from '../../api';
 import useFetch from '../../hooks/useFetch';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -455,6 +455,88 @@ function Staff() {
   );
 }
 
+const PM_METHODS = [['card', 'Credit / debit card'], ['gcash', 'GCash'], ['paymaya', 'Maya'], ['grab_pay', 'GrabPay'], ['qrph', 'QR Ph']];
+
+function OnlinePayments({ gym, onSaved }) {
+  const toast = useToast();
+  const pm = gym.paymongo || {};
+  const [key, setKey] = useState('');
+  const [methods, setMethods] = useState(pm.methods?.length ? pm.methods : ['card', 'gcash', 'paymaya']);
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  useEffect(() => setMethods(gym.paymongo?.methods?.length ? gym.paymongo.methods : ['card', 'gcash', 'paymaya']), [gym]);
+  const save = async (extra = {}) => {
+    setBusy(true);
+    try {
+      await api.put('/settings/paymongo', { secretKey: key || undefined, methods, ...extra });
+      toast(extra.enabled === true ? 'Online payments turned on' : extra.enabled === false ? 'Online payments turned off' : 'Online payment settings saved');
+      setKey('');
+      onSaved();
+    } catch (err) {
+      toast(errMsg(err), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    try {
+      await api.delete('/settings/paymongo');
+      toast('PayMongo keys removed');
+      setConfirm(false);
+      onSaved();
+    } catch (err) {
+      toast(errMsg(err), 'error');
+    }
+  };
+  const toggle = (m) => setMethods((x) => (x.includes(m) ? x.filter((y) => y !== m) : [...x, m]));
+  return (
+    <Stack spacing={2}>
+      <Section title="Online payments (PayMongo)" action={pm.last4 ? <StatusChip label={pm.enabled ? 'On' : 'Off'} color={pm.enabled ? 'green' : 'grey'} /> : null}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Members can pay renewals, unpaid invoices and online sign-ups by card, GCash or Maya. This is an extra option: GCash reference and paying at the front desk still work. Money goes straight to your gym's PayMongo account, and memberships activate automatically once PayMongo confirms the payment.
+        </Typography>
+        {pm.last4 ? (
+          <Alert severity={pm.mode === 'live' ? 'success' : 'info'} sx={{ mb: 2 }}>
+            Connected with a <b>{pm.mode === 'live' ? 'LIVE' : 'TEST'}</b> secret key ending in <b>{pm.last4}</b>.{pm.mode === 'test' ? ' Test mode: no real money moves. Use PayMongo test cards to try it, then switch to your live key.' : ''}
+          </Alert>
+        ) : (
+          <Alert severity="warning" sx={{ mb: 2 }}>Not connected yet. Add your PayMongo secret key below.</Alert>
+        )}
+        <Stack spacing={2}>
+          <TextField
+            label={pm.last4 ? 'Replace secret key (optional)' : 'PayMongo secret key'}
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value.trim())}
+            placeholder="sk_test_… or sk_live_…"
+            helperText="PayMongo Dashboard → Developers → API Keys. Use the SECRET key. It is stored encrypted and is never shown again."
+            autoComplete="off"
+          />
+          <Box>
+            <Typography variant="body2" fontWeight={700} sx={{ mb: 0.5 }}>Methods members can use</Typography>
+            <Stack direction="row" flexWrap="wrap" useFlexGap>
+              {PM_METHODS.map(([v, l]) => <FormControlLabel key={v} control={<Checkbox checked={methods.includes(v)} onChange={() => toggle(v)} />} label={l} />)}
+            </Stack>
+            <Typography variant="caption" color="text.secondary">Only tick methods that are activated in your PayMongo account.</Typography>
+          </Box>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button variant="contained" disabled={busy || (!key && !pm.last4)} onClick={() => save()}>{busy ? 'Checking key…' : 'Save'}</Button>
+            {pm.last4 && (pm.enabled
+              ? <Button variant="outlined" color="error" disabled={busy} onClick={() => save({ enabled: false })}>Turn off online payments</Button>
+              : <Button variant="outlined" disabled={busy} onClick={() => save({ enabled: true })}>Turn on online payments</Button>)}
+            {pm.last4 && <Button color="error" onClick={() => setConfirm(true)}>Remove keys</Button>}
+          </Stack>
+        </Stack>
+      </Section>
+      <Section title="Faster confirmation (optional)">
+        <Typography variant="body2" color="text.secondary">GYMORA checks pending online payments every few minutes and right after the member returns from PayMongo. For instant confirmation, add this webhook in PayMongo → Developers → Webhooks with the event <b>checkout_session.payment.paid</b>:</Typography>
+        <Box sx={{ mt: 1, p: 1.2, bgcolor: brand.fill, borderRadius: 2, fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-all' }}>{`${API_URL}/api/online-payments/webhook/${gym._id}`}</Box>
+      </Section>
+      <ConfirmDialog open={confirm} title="Remove PayMongo keys?" message="Online payments turn off. Members can still pay with GCash reference or at the front desk." confirmLabel="Remove" danger onClose={() => setConfirm(false)} onConfirm={remove} />
+    </Stack>
+  );
+}
+
 function KioskAndJobs({ gym, onSaved }) {
   const toast = useToast();
   const [result, setResult] = useState(null);
@@ -534,17 +616,19 @@ export default function Settings() {
         <Tab label="Nutrition rules" />
         <Tab label="Staff accounts" />
         <Tab label="Kiosk & jobs" />
+        <Tab label="Online payments" />
       </Tabs>
       {tab === 2 && <Plans />}
       {tab === 3 && <Nutrition />}
       {tab === 4 && <Staff />}
-      {[0, 1, 5].includes(tab) && (
+      {[0, 1, 5, 6].includes(tab) && (
         <DataState {...g} onRetry={g.reload}>
           {g.data && (
             <>
               {tab === 0 && <GymInfo gym={g.data} onSaved={saved} />}
               {tab === 1 && <Operations gym={g.data} onSaved={saved} />}
               {tab === 5 && <KioskAndJobs gym={g.data} onSaved={saved} />}
+              {tab === 6 && <OnlinePayments gym={g.data} onSaved={saved} />}
             </>
           )}
         </DataState>

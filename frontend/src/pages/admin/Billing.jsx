@@ -15,6 +15,7 @@ import { fdate, fdt, peso, peso0 } from '../../utils/format';
 import { brand } from '../../theme';
 import { NameField } from '../../components/ContactFields';
 
+const CHANNEL = { card: 'Card', gcash: 'GCash', paymaya: 'Maya', grab_pay: 'GrabPay', qrph: 'QR Ph' };
 const TABS = [['all', 'All'], ['Membership', 'Membership'], ['Walk-in', 'Walk-in'], ['Other', 'Other'], ['Unpaid', 'Unpaid'], ['Void', 'Void']];
 const METHODS = ['Cash', 'GCash', 'Card', 'Other'];
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -167,11 +168,12 @@ export default function Billing() {
                     <TableCell>{p.description}</TableCell>
                     <TableCell>{p.paymentType}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{fdate(p.paymentDate || p.createdAt)}</TableCell>
-                    <TableCell>{p.paymentMethod}{p.referenceNumber && <Typography variant="caption" display="block" color="text.secondary">Ref {p.referenceNumber}</Typography>}</TableCell>
+                    <TableCell>{p.paymentMethod}{p.paymentMethod === 'Online' && p.online?.channel ? ` · ${CHANNEL[p.online.channel] || p.online.channel}` : ''}{p.status === 'Unpaid' && p.online?.checkoutId && <Typography variant="caption" display="block" color="text.secondary">Started online payment</Typography>}{p.referenceNumber && <Typography variant="caption" display="block" color="text.secondary">Ref {p.referenceNumber}</Typography>}</TableCell>
                     <TableCell align="right"><b>{peso(p.amount)}</b></TableCell>
                     <TableCell><StatusChip label={p.status} /></TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                        {p.status === 'Unpaid' && p.online?.checkoutId && <Button size="small" onClick={() => act(async () => { const { data } = await api.post(`/online-payments/${p._id}/verify`); toast(data.status === 'Paid' ? `${data.receiptNo} confirmed as paid online` : 'Not paid yet on PayMongo', data.status === 'Paid' ? 'success' : 'info'); reload(); })}>Check online</Button>}
                         {p.status === 'Unpaid' && <Button size="small" variant="contained" onClick={() => { setSettle(p); setSettleF({ paymentMethod: p.referenceNumber ? 'GCash' : 'Cash', referenceNumber: p.referenceNumber || '' }); }}>{p.referenceNumber ? 'Verify & mark paid' : 'Mark paid'}</Button>}
                         {p.status === 'Paid' && <Button size="small" startIcon={<ReceiptIcon />} onClick={() => setReceipt(p)}>Receipt</Button>}
                         {role === 'admin' && p.status !== 'Void' && !p.posTransaction && <Button size="small" color="error" onClick={() => setVoiding(p)}>Void</Button>}

@@ -3,7 +3,7 @@ import { emitToStaff } from '../utils/socket.js';
 
 const { ObjectId } = mongoose.Schema.Types;
 
-export const PAYMENT_METHODS = ['Cash', 'GCash', 'Card', 'Other', 'Unpaid'];
+export const PAYMENT_METHODS = ['Cash', 'GCash', 'Card', 'Online', 'Other', 'Unpaid'];
 
 const schema = new mongoose.Schema(
   {
@@ -20,6 +20,15 @@ const schema = new mongoose.Schema(
     paymentMethod: { type: String, enum: PAYMENT_METHODS, default: 'Cash' },
     paymentDate: Date,
     referenceNumber: String,
+    online: {
+      provider: String,
+      checkoutId: String,
+      checkoutUrl: String,
+      startedAt: Date,
+      channel: String,
+      providerPaymentId: String,
+      paidAt: Date,
+    },
     status: { type: String, enum: ['Paid', 'Unpaid', 'Void'], default: 'Paid' },
     recordedBy: { type: ObjectId, ref: 'StaffAdmin' },
   },

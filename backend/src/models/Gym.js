@@ -44,6 +44,14 @@ const gymSchema = new mongoose.Schema(
     status: { type: String, enum: ['pending', 'active', 'suspended'], default: 'active' },
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'StaffAdmin' },
     settings: { type: settingsSchema, default: () => ({}) },
+    paymongo: {
+      enabled: { type: Boolean, default: false },
+      mode: { type: String, enum: ['test', 'live'] },
+      last4: String,
+      methods: { type: [String], default: ['card', 'gcash', 'paymaya'] },
+      configuredAt: Date,
+      secretKeyEnc: { type: String, select: false },
+    },
   },
   { timestamps: true }
 );

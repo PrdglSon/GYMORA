@@ -72,9 +72,9 @@ r.post('/gyms/:slug/register', limiter, ah(async (req, res) => {
     heightCm: req.body.heightCm || undefined,
     student: { isStudent, status: 'none', school: req.body.school },
   });
-  await sellMembership({ gym: gym._id, member, plan, paid: false });
+  const { payment: invoice } = await sellMembership({ gym: gym._id, member, plan, paid: false });
   await notifyStaff(gym._id, { type: 'Membership', title: 'New online registration', message: `${member.firstName} ${member.lastName} signed up for ${plan.planName}. Payment pending.`, link: '/admin/members' });
-  res.status(201).json({ token: signToken('Member', member), ...(await sessionPayload('Member', member)) });
+  res.status(201).json({ token: signToken('Member', member), ...(await sessionPayload('Member', member)), invoiceId: invoice._id });
 }));
 
 r.post('/gyms/:slug/inquiry', limiter, ah(async (req, res) => {

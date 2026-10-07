@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Alert, Button, Checkbox, FormControlLabel, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import { Alert, Button, Checkbox, FormControlLabel, Link, MenuItem, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import AuthLayout from '../auth/AuthLayout';
 import useFetch from '../../hooks/useFetch';
 import api, { errMsg } from '../../api';
@@ -22,6 +22,7 @@ export default function RegisterMember() {
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const [busy, setBusy] = useState(false);
+  const [payWay, setPayWay] = useState('desk');
 
   useEffect(() => {
     if (data && !f.planId) setF((x) => ({ ...x, planId: data.plans.find((p) => !p.isStudentPlan)?._id || data.plans[0]?._id || '' }));
@@ -47,6 +48,18 @@ export default function RegisterMember() {
       });
       if (res?.token) {
         acceptSession(res);
+        if (payWay === 'online' && res.invoiceId) {
+          try {
+            const { data: pay } = await api.post('/online-payments/checkout', { paymentId: res.invoiceId });
+            if (pay.checkoutUrl) {
+              window.location.href = pay.checkoutUrl;
+              return;
+            }
+          } catch {
+            navigate('/member/payments?onlineFailed=1', { replace: true });
+            return;
+          }
+        }
         navigate('/member/payments', { replace: true });
       } else {
         setDone(res?.message || 'Registration received. Please visit the front desk to complete your membership.');
@@ -94,8 +107,22 @@ export default function RegisterMember() {
           </TextField>
           <FormControlLabel control={<Checkbox checked={f.isStudent} onChange={(e) => setF({ ...f, isStudent: e.target.checked })} />} label="I am a student (upload your school ID after signing up)" />
           {f.isStudent && <TextField label="School" value={f.school} onChange={set('school')} />}
+          {data.gym.paymongo?.enabled && (
+            <Stack spacing={1}>
+              <Typography variant="body2" fontWeight={700}>How do you want to pay{chosen ? ` ${peso0(chosen.price)}` : ''}?</Typography>
+              <ToggleButtonGroup exclusive size="small" color="secondary" value={payWay} onChange={(_, v) => v && setPayWay(v)}>
+                <ToggleButton value="online">Pay online now</ToggleButton>
+                <ToggleButton value="desk">Pay at the gym</ToggleButton>
+              </ToggleButtonGroup>
+              <Typography variant="caption" color="text.secondary">
+                {payWay === 'online'
+                  ? `After creating your account you go to PayMongo's secure page (${(data.gym.paymongo.methods || []).map((x) => ({ card: 'Card', gcash: 'GCash', paymaya: 'Maya', grab_pay: 'GrabPay', qrph: 'QR Ph' })[x]).filter(Boolean).join(', ')}). Your membership activates as soon as the payment is confirmed.`
+                  : 'Your account is created now. Pay at the front desk, or later from the Payments page, to activate your membership.'}
+              </Typography>
+            </Stack>
+          )}
           <FormControlLabel control={<Checkbox checked={agree} onChange={(e) => setAgree(e.target.checked)} required />} label="I agree to the gym rules and the privacy policy" />
-          <Button type="submit" size="large" variant="contained" disabled={busy || !agree}>Create account</Button>
+          <Button type="submit" size="large" variant="contained" disabled={busy || !agree}>{payWay === 'online' && data.gym.paymongo?.enabled ? 'Create account and pay' : 'Create account'}</Button>
           <Typography variant="caption" color="text.secondary">Your plan starts once payment is recorded at the front desk or your GCash payment is verified.</Typography>
         </Stack>
       )}
