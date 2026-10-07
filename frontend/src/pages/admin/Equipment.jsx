@@ -52,14 +52,14 @@ export default function Equipment() {
   });
   const openEdit = (x) => {
     setF(x
-      ? { equipmentName: x.equipmentName, code: x.code || '', category: x.category || '', location: x.location || '', status: x.status, purchaseDate: d10(x.purchaseDate), lastServicedAt: d10(x.lastServicedAt), nextServiceAt: d10(x.nextServiceAt), notes: x.notes || '' }
-      : { equipmentName: '', code: '', category: 'Cardio', location: '', status: 'Operational', purchaseDate: '', lastServicedAt: '', nextServiceAt: '', notes: '' });
+      ? { equipmentName: x.equipmentName, code: x.code || '', category: x.category || '', purchaseDate: d10(x.purchaseDate) }
+      : { equipmentName: '', code: '', category: 'Cardio', purchaseDate: '' });
     setEdit(x || null);
   };
   const save = (ev) => {
     ev.preventDefault();
     act(async () => {
-      const body = { ...f, purchaseDate: f.purchaseDate || undefined, lastServicedAt: f.lastServicedAt || undefined, nextServiceAt: f.nextServiceAt || undefined };
+      const body = { ...f, purchaseDate: f.purchaseDate || undefined };
       if (edit) await api.patch(`/equipment/${edit._id}`, body);
       else await api.post('/equipment', body);
       toast('Equipment saved');
@@ -109,12 +109,12 @@ export default function Equipment() {
         <DataState {...e} onRetry={e.reload}>
           <Box sx={{ overflowX: 'auto' }}>
             <Table size="small">
-              <TableHead><TableRow><TableCell>Equipment</TableCell><TableCell>Location</TableCell><TableCell>Purchased</TableCell><TableCell>Last serviced</TableCell><TableCell>Next service</TableCell><TableCell>Status</TableCell><TableCell /></TableRow></TableHead>
+              <TableHead><TableRow><TableCell>Equipment</TableCell><TableCell>Equipment ID</TableCell><TableCell>Purchased</TableCell><TableCell>Last serviced</TableCell><TableCell>Next service</TableCell><TableCell>Status</TableCell><TableCell /></TableRow></TableHead>
               <TableBody>
                 {list.map((x) => (
                   <TableRow key={x._id} sx={{ bgcolor: x.serviceDue ? brand.yellowSoft : undefined }}>
-                    <TableCell><b>{x.equipmentName}</b> {x.code}<Typography variant="caption" display="block" color="text.secondary">{x.category}{x.notes ? ` · ${x.notes}` : ''}</Typography></TableCell>
-                    <TableCell>{x.location || '—'}</TableCell>
+                    <TableCell><b>{x.equipmentName}</b><Typography variant="caption" display="block" color="text.secondary">{x.category}{x.notes ? ` · ${x.notes}` : ''}</Typography></TableCell>
+                    <TableCell>{x.code || '—'}</TableCell>
                     <TableCell>{fdate(x.purchaseDate)}</TableCell>
                     <TableCell>{fdate(x.lastServicedAt)}</TableCell>
                     <TableCell>{x.nextServiceAt ? <Stack direction="row" spacing={0.5} alignItems="center"><span>{fdate(x.nextServiceAt)}</span>{x.serviceDue && <StatusChip label="Due" color="amber" />}</Stack> : '—'}</TableCell>
@@ -140,19 +140,12 @@ export default function Equipment() {
         <DialogTitle>{edit ? `Edit ${edit.equipmentName}` : 'Add equipment'}</DialogTitle>
         <DialogContent>
           {f && (
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <Grid cols={{ xs: 1, sm: 2 }}>
-                <TextField label="Equipment name" value={f.equipmentName} onChange={(ev) => setF({ ...f, equipmentName: ev.target.value })} required />
-                <TextField label="Code" placeholder="TM-03" value={f.code} onChange={(ev) => setF({ ...f, code: ev.target.value })} />
-                <TextField label="Category" value={f.category} onChange={(ev) => setF({ ...f, category: ev.target.value })} />
-                <TextField label="Location" value={f.location} onChange={(ev) => setF({ ...f, location: ev.target.value })} />
-                <TextField select label="Status" value={f.status} onChange={(ev) => setF({ ...f, status: ev.target.value })}>{STATUSES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}</TextField>
-                <TextField type="date" label="Purchase date" value={f.purchaseDate} onChange={(ev) => setF({ ...f, purchaseDate: ev.target.value })} InputLabelProps={{ shrink: true }} />
-                <TextField type="date" label="Last serviced" value={f.lastServicedAt} onChange={(ev) => setF({ ...f, lastServicedAt: ev.target.value })} InputLabelProps={{ shrink: true }} />
-                <TextField type="date" label="Next service" value={f.nextServiceAt} onChange={(ev) => setF({ ...f, nextServiceAt: ev.target.value })} InputLabelProps={{ shrink: true }} />
-              </Grid>
-              <TextField label="Notes" value={f.notes} onChange={(ev) => setF({ ...f, notes: ev.target.value })} multiline minRows={2} />
-            </Stack>
+            <Grid cols={{ xs: 1, sm: 2 }} sx={{ mt: 1 }}>
+              <TextField label="Equipment name" value={f.equipmentName} onChange={(ev) => setF({ ...f, equipmentName: ev.target.value })} required />
+              <TextField label="Equipment ID" placeholder="TM-03" value={f.code} onChange={(ev) => setF({ ...f, code: ev.target.value })} />
+              <TextField label="Category" value={f.category} onChange={(ev) => setF({ ...f, category: ev.target.value })} />
+              <TextField type="date" label="Purchase date" value={f.purchaseDate} onChange={(ev) => setF({ ...f, purchaseDate: ev.target.value })} InputLabelProps={{ shrink: true }} />
+            </Grid>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}><Button variant="outlined" onClick={() => setEdit(undefined)}>Cancel</Button><Button type="submit" variant="contained" disabled={busy}>Save</Button></DialogActions>
