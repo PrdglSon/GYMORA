@@ -8,6 +8,7 @@ import { useSocketEvent } from '../../context/SocketContext';
 import { usePageTitle } from '../../components/AppShell';
 import { DataState, Grid, Section, StatCard, StatusChip, UserAvatar, ConfirmDialog, Empty } from '../../components/ui';
 import { NameField, PhoneField } from '../../components/ContactFields';
+import DeleteAccountDialog from '../../components/DeleteAccountDialog';
 
 const blank = { firstName: '', lastName: '', email: '', phoneNumber: '', certification: '', experience: 0, bio: '', specializations: [], activeStatus: 'Active' };
 
@@ -17,6 +18,7 @@ function CoachDialog({ open, coach, onClose, onSaved }) {
   const [f, setF] = useState(null);
   const [temp, setTemp] = useState('');
   const [busy, setBusy] = useState(false);
+  const [del, setDel] = useState(false);
   const specs = [...new Set([...(gym?.settings?.specializations || []), ...(f?.specializations || [])])];
   const init = () => {
     setTemp('');
@@ -71,7 +73,7 @@ function CoachDialog({ open, coach, onClose, onSaved }) {
               ))}
             </Grid>
             {coach && (
-              <TextField select label="Account status" value={f.activeStatus} onChange={(e) => setF({ ...f, activeStatus: e.target.value })} helperText="Inactive coaches cannot log in and are hidden from members.">
+              <TextField select label="Account status" value={f.activeStatus} onChange={(e) => setF({ ...f, activeStatus: e.target.value })} helperText="Inactive coaches cannot log in and are hidden from members. Save as Inactive to unlock Delete.">
                 <MenuItem value="Active">Active</MenuItem>
                 <MenuItem value="Inactive">Inactive</MenuItem>
               </TextField>
@@ -80,9 +82,30 @@ function CoachDialog({ open, coach, onClose, onSaved }) {
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
+        {coach && !temp && coach.activeStatus === 'Inactive' && <Button color="error" onClick={() => setDel(true)} sx={{ mr: 'auto' }}>Delete coach</Button>}
         <Button variant="outlined" onClick={onClose}>{temp ? 'Done' : 'Cancel'}</Button>
         {!temp && <Button type="submit" variant="contained" disabled={busy}>Save</Button>}
       </DialogActions>
+      {coach && (
+        <DeleteAccountDialog
+          open={del}
+          kind="coach"
+          title={`Delete ${coach.firstName} ${coach.lastName}?`}
+          expect={`${coach.firstName} ${coach.lastName}`.trim()}
+          onClose={() => setDel(false)}
+          onConfirm={async (confirm) => {
+            try {
+              const { data } = await api.delete(`/coaches/${coach._id}`, { data: { confirm } });
+              toast(data.message);
+              setDel(false);
+              onSaved();
+              onClose();
+            } catch (err) {
+              toast(errMsg(err), 'error');
+            }
+          }}
+        />
+      )}
     </Dialog>
   );
 }

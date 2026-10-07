@@ -14,6 +14,7 @@ import { ConfirmDialog, DataState, Grid, Section, StatCard, StatusChip, UserAvat
 import { fdate, fdm, fdt, peso, peso0 } from '../../utils/format';
 import { brand } from '../../theme';
 import { NameField, PhoneField } from '../../components/ContactFields';
+import DeleteAccountDialog from '../../components/DeleteAccountDialog';
 
 const GOALS = ['Weight Loss', 'Muscle Gain', 'Strength', 'General Fitness', 'Endurance', 'Flexibility'];
 const GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'];
@@ -125,6 +126,7 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
   }, [d.data, plans]);
 
   const [dup, setDup] = useState('');
+  const [del, setDel] = useState(false);
   const lock = useRef(false);
   const run = async (fn, msg, onError) => {
     if (lock.current) return null;
@@ -244,6 +246,7 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
                     <Button type="submit" variant="contained" disabled={busy}>Save details</Button>
                     {role === 'admin' && <Button variant="outlined" disabled={busy} onClick={async () => { const r = await run(() => api.post(`/members/${id}/reset-password`)); if (r) setTemp(r.data.temporaryPassword); }}>Reset password</Button>}
                     <Button variant="outlined" color="error" disabled={busy} onClick={() => run(() => api.patch(`/members/${id}`, { accountStatus: m.accountStatus === 'inactive' ? 'active' : 'inactive' }), m.accountStatus === 'inactive' ? 'Account reactivated' : 'Account deactivated')}>{m.accountStatus === 'inactive' ? 'Reactivate account' : 'Deactivate account'}</Button>
+                    {role === 'admin' && m.accountStatus === 'inactive' && <Button variant="contained" color="error" disabled={busy} onClick={() => setDel(true)}>Delete permanently</Button>}
                   </Stack>
                   {temp && <Alert severity="success">Temporary password: <b>{temp}</b></Alert>}
                   <Typography variant="caption" color="text.secondary">Registered {fdate(m.registrationDate)}</Typography>
@@ -272,6 +275,26 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
           )}
         </DataState>
       </Box>
+      {d.data?.member && (
+        <DeleteAccountDialog
+          open={del}
+          kind="member"
+          title={`Delete ${d.data.member.name}?`}
+          expect={d.data.member.memberCode}
+          onClose={() => setDel(false)}
+          onConfirm={async (confirm) => {
+            try {
+              const { data } = await api.delete(`/members/${id}`, { data: { confirm } });
+              toast(data.message);
+              setDel(false);
+              onChanged();
+              onClose();
+            } catch (err) {
+              toast(errMsg(err), 'error');
+            }
+          }}
+        />
+      )}
       <ConfirmDialog
         open={!!dup}
         title="Membership already recorded today"

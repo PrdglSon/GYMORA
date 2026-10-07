@@ -14,6 +14,7 @@ import { startOfDay, addDays } from '../utils/dates.js';
 import { clientIdsOf } from './coaches.routes.js';
 import { sendEmail } from '../utils/email.js';
 import { liveQr } from '../utils/liveQr.js';
+import { removeMember } from '../utils/accountRemoval.js';
 import { env } from '../config/env.js';
 
 const r = Router();
@@ -178,6 +179,16 @@ r.post('/:id/memberships', allow(...STAFF), ah(async (req, res) => {
   if (paid) await notify(toMember(m), { gym: req.gymId, type: 'Membership', title: 'Membership renewed', message: `${plan.planName} is active until ${new Date(m.current.endDate).toDateString()}.`, link: '/member/payments', email: true });
   audit(req, 'Payment and Billing', `Sold ${plan.planName} to ${m.memberCode} (${paid ? req.body.method || 'Cash' : 'unpaid'})`);
   res.status(201).json({ member: memberDTO(m, req.gym.settings), ...result });
+}));
+
+r.delete('/:id', allow('admin'), ah(async (req, res) => {
+  const m = await loadMember(req, req.params.id);
+  if (m.status !== 'inactive') throw new ApiError(400, 'Deactivate the account first, then delete it.');
+  if (String(req.body?.confirm || '').trim().toUpperCase() !== m.memberCode.toUpperCase()) throw new ApiError(400, `Type ${m.memberCode} to confirm.`);
+  const label = `${m.firstName} ${m.lastName} (${m.memberCode})`;
+  await removeMember(m);
+  audit(req, 'Member Management', `Deleted member ${label}`);
+  res.json({ message: `${label} was deleted. Payments and attendance stay as "Deleted member".` });
 }));
 
 r.post('/:id/student-review', allow(...STAFF), ah(async (req, res) => {

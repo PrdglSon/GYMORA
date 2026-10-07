@@ -10,6 +10,7 @@ import { emitToGym } from '../utils/socket.js';
 import { sendEmail } from '../utils/email.js';
 import { env } from '../config/env.js';
 import { audit } from '../utils/audit.js';
+import { removeCoach } from '../utils/accountRemoval.js';
 import { startOfDay, addDays, startOfWeek } from '../utils/dates.js';
 
 const r = Router();
@@ -159,6 +160,17 @@ r.post('/:id/reject', allow('admin'), ah(async (req, res) => {
   sendEmail({ to: coach.email, subject: `${req.gym.name}: coach account request`, text: `Hi ${coach.firstName},\n\nYour coach account request at ${req.gym.name} was not approved. Please contact the gym for details.` });
   audit(req, 'User and Access Control', `Rejected coach account request from ${coach.firstName} ${coach.lastName}`);
   res.json({ ok: true });
+}));
+
+r.delete('/:id', allow('admin'), ah(async (req, res) => {
+  const coach = await Coach.findOne({ _id: req.params.id, gym: req.gymId });
+  if (!coach) throw notFound('Coach');
+  if (coach.activeStatus !== 'Inactive' && coach.status !== 'inactive') throw new ApiError(400, 'Set the coach to Inactive first, then delete.');
+  const name = `${coach.firstName} ${coach.lastName}`.trim();
+  if (String(req.body?.confirm || '').trim().toLowerCase().replace(/\s+/g, ' ') !== name.toLowerCase().replace(/\s+/g, ' ')) throw new ApiError(400, `Type ${name} to confirm.`);
+  await removeCoach(coach);
+  audit(req, 'Coach Management', `Deleted coach ${name}`);
+  res.json({ message: `${name} was deleted. Past sessions and records stay as "Deleted coach".` });
 }));
 
 r.post('/:id/reset-password', allow('admin'), ah(async (req, res) => {

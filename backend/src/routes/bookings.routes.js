@@ -29,9 +29,9 @@ function dto(b) {
   const o = b.toObject ? b.toObject() : b;
   return {
     ...o,
-    memberName: o.member?.firstName ? fullName(o.member) : undefined,
+    memberName: o.member?.firstName ? fullName(o.member) : o.member === null ? 'Deleted member' : undefined,
     memberCode: o.member?.memberCode,
-    coachName: o.coach?.firstName ? fullName(o.coach) : undefined,
+    coachName: o.coach?.firstName ? fullName(o.coach) : o.coach === null ? 'Deleted coach' : undefined,
   };
 }
 
@@ -144,7 +144,7 @@ r.get('/stats', allow(...STAFF), ah(async (req, res) => {
   const status = Object.fromEntries(BOOKING_STATUS.map((s) => [s, 0]));
   byStatus.forEach((s) => { status[s._id] = s.count; });
   const total = Object.values(status).reduce((a, b) => a + b, 0);
-  res.json({ total, status, upcoming, byCoach: byCoach.map((c) => ({ coachId: c._id, coachName: names[String(c._id)] || 'Coach', total: c.total, completed: c.completed, approved: c.approved })) });
+  res.json({ total, status, upcoming, byCoach: byCoach.map((c) => ({ coachId: c._id, coachName: names[String(c._id)] || 'Deleted coach', total: c.total, completed: c.completed, approved: c.approved })) });
 }));
 
 r.patch('/:id/approve', allow('coach', ...STAFF), ah(async (req, res) => {
