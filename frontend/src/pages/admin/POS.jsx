@@ -16,11 +16,11 @@ import { brand, DISPLAY_FONT } from '../../theme';
 import { NameField } from '../../components/ContactFields';
 
 const SWATCH = ['#2B2B2B', '#E8A400', '#B0262B', '#7A4A2A', '#2B6CB0', '#D9572B', '#4B4B4B', '#1E7A4C'];
-const METHODS = ['Cash', 'GCash', 'Card', 'Other'];
+const ONLINE_ORDER = ['gcash', 'card', 'paymaya', 'grab_pay', 'qrph'];
 const CHANNEL = { card: 'Card', gcash: 'GCash', paymaya: 'Maya', grab_pay: 'GrabPay', qrph: 'QR Ph' };
-const methodText = (t) => (t.paymentMethod === 'Online' ? `PayMongo${t.online?.channel ? ` · ${CHANNEL[t.online.channel] || t.online.channel}` : ''}` : t.paymentMethod);
+const methodText = (t) => (t.paymentMethod === 'Online' ? `${CHANNEL[t.online?.channel] || 'Online'} (PayMongo)` : t.paymentMethod);
 
-function OnlinePayDialog({ tx, onPaid, onClose }) {
+function OnlinePayDialog({ tx, channel, onPaid, onClose }) {
   const toast = useToast();
   const [status, setStatus] = useState('Pending');
   const [busy, setBusy] = useState(false);
@@ -61,7 +61,7 @@ function OnlinePayDialog({ tx, onPaid, onClose }) {
           <DialogTitle>Scan to pay · {peso(tx.totalAmount)}</DialogTitle>
           <DialogContent>
             <Stack alignItems="center" spacing={1.5}>
-              <Typography variant="body2" textAlign="center">Ask the customer to scan this with their phone camera. They can pay with GCash, card, Maya and the other methods you turned on.</Typography>
+              <Typography variant="body2" textAlign="center">{channel === 'card' ? 'Ask the customer to scan this with their phone camera and enter their card details on PayMongo\'s secure page, or open the page on this device.' : `Ask the customer to scan this with their phone camera. It opens ${CHANNEL[channel] || 'their e-wallet'} so they can approve the payment.`}</Typography>
               <Box sx={{ p: 1.5, bgcolor: '#fff', border: `1px solid ${brand.line}`, borderRadius: 2 }}><QRCodeSVG value={tx.online?.checkoutUrl || ''} size={230} /></Box>
               <Stack direction="row" spacing={1} alignItems="center">
                 {status === 'Pending' && <CircularProgress size={16} />}
@@ -197,11 +197,12 @@ export default function POS() {
   const [disc, setDisc] = useState(-1);
   const [method, setMethod] = useState('Cash');
   const [tendered, setTendered] = useState('');
-  const [ref, setRef] = useState('');
   const [receipt, setReceipt] = useState(null);
   const [busy, setBusy] = useState(false);
   const [onlineTx, setOnlineTx] = useState(null);
   const onlineOn = !!gym?.paymongo?.enabled;
+  const channels = onlineOn ? ONLINE_ORDER.filter((c) => (gym.paymongo.methods || []).includes(c)) : ['gcash', 'card'];
+  const isOnline = method !== 'Cash';
   const discounts = gym?.settings?.discounts || [];
   const walkInFee = gym?.settings?.walkInFee || 0;
 
@@ -253,7 +254,6 @@ export default function POS() {
   const clear = () => {
     setCart([]);
     setTendered('');
-    setRef('');
     setDisc(-1);
     setMember(null);
     setCustomerName('');
@@ -278,9 +278,9 @@ export default function POS() {
         customerName: member ? undefined : customerName || undefined,
         discountRate: rate,
         discountLabel: d?.label,
-        paymentMethod: method,
+        paymentMethod: isOnline ? 'Online' : 'Cash',
+        onlineChannel: isOnline ? method : undefined,
         amountTendered: method === 'Cash' ? Number(tendered) : undefined,
-        referenceNumber: ref || undefined,
       });
       if (data.status === 'Pending') {
         setOnlineTx(data);
@@ -385,8 +385,11 @@ export default function POS() {
                 <Stack direction="row" justifyContent="space-between" sx={{ mt: 1 }}><Typography fontWeight={800} fontSize={18}>Total</Typography><Typography fontWeight={800} fontSize={18}>{peso(total)}</Typography></Stack>
               </Box>
               <Typography variant="body2" fontWeight={700} sx={{ mt: 1.5, mb: 1 }}>Payment method</Typography>
-              <ToggleButtonGroup exclusive fullWidth size="small" value={method} onChange={(_, v) => v && setMethod(v)} color="secondary">{METHODS.map((m) => <ToggleButton key={m} value={m}>{m}</ToggleButton>)}</ToggleButtonGroup>
-              {onlineOn && <ToggleButton fullWidth size="small" sx={{ mt: 0.75 }} value="Online" selected={method === 'Online'} onChange={() => setMethod('Online')} color="secondary">PayMongo · QR (GCash, card, Maya)</ToggleButton>}
+              <ToggleButtonGroup exclusive fullWidth size="small" value={method} onChange={(_, v) => v && setMethod(v)} color="secondary">
+                <ToggleButton value="Cash">Cash</ToggleButton>
+                {channels.map((c) => <ToggleButton key={c} value={c} disabled={!onlineOn}>{CHANNEL[c]}</ToggleButton>)}
+              </ToggleButtonGroup>
+              {!onlineOn && <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>{role === 'admin' ? 'Connect PayMongo in System Settings → Online payments to accept GCash and card.' : 'GCash and card turn on once the administrator connects PayMongo.'}</Typography>}
               {method === 'Cash' ? (
                 <>
                   <TextField sx={{ mt: 1.5 }} fullWidth size="small" label="Amount tendered" type="number" value={tendered} onChange={(e) => setTendered(e.target.value)} inputProps={{ min: 0, step: 0.01 }} />
@@ -395,18 +398,18 @@ export default function POS() {
                   </Stack>
                   <Stack direction="row" justifyContent="space-between" sx={{ mt: 1 }}><Typography fontWeight={800} sx={{ color: change >= 0 ? brand.green : brand.red }}>{change >= 0 ? 'Change' : 'Short by'}</Typography><Typography fontWeight={800} sx={{ color: change >= 0 ? brand.green : brand.red }}>{peso(Math.abs(change))}</Typography></Stack>
                 </>
-              ) : method === 'Online' ? (
-                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5 }}>A QR code appears. The customer scans it and pays on their phone through PayMongo. The sale finishes by itself once payment is confirmed.</Typography>
-              ) : <TextField sx={{ mt: 1.5 }} fullWidth size="small" label="Reference / approval number" value={ref} onChange={(e) => setRef(e.target.value)} />}
+              ) : (
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5 }}>{method === 'card' ? 'A QR code appears. The customer scans it and enters their card on PayMongo\'s secure page (or use this device).' : `A QR code appears. The customer scans it and approves the payment in ${CHANNEL[method]}.`} The sale finishes by itself once PayMongo confirms.</Typography>
+              )}
               {needMember && <Typography variant="caption" display="block" sx={{ color: brand.red, mt: 1 }}>Choose the member to sell a membership.</Typography>}
               {studentBlocked && <Typography variant="caption" display="block" sx={{ color: brand.red, mt: 1 }}>The student plan needs a verified school ID.</Typography>}
-              <Button fullWidth sx={{ mt: 2 }} variant="contained" color="secondary" disabled={busy || !cart.length || needMember || studentBlocked || (method === 'Cash' && (tendered === '' || change < 0))} onClick={complete}>{method === 'Online' ? `Show payment QR · ${peso(total)}` : `Complete sale · ${peso(total)}`}</Button>
+              <Button fullWidth sx={{ mt: 2 }} variant="contained" color="secondary" disabled={busy || !cart.length || needMember || studentBlocked || (method === 'Cash' && (tendered === '' || change < 0))} onClick={complete}>{isOnline ? `Pay with ${CHANNEL[method]} · ${peso(total)}` : `Complete sale · ${peso(total)}`}</Button>
             </CardContent>
           </Card>
         </Box>
       )}
       <TxReceipt tx={receipt} gym={gym} cashier={me} title="Sale complete" primary="New sale" onClose={() => setReceipt(null)} />
-      <OnlinePayDialog tx={onlineTx} onClose={() => setOnlineTx(null)} onPaid={(done) => { setOnlineTx(null); setReceipt(done); clear(); products.reload(); toast('Payment received. Sale complete.'); }} />
+      <OnlinePayDialog tx={onlineTx} channel={onlineTx?.online?.channelRequested || method} onClose={() => setOnlineTx(null)} onPaid={(done) => { setOnlineTx(null); setReceipt(done); clear(); products.reload(); toast('Payment received. Sale complete.'); }} />
     </Stack>
   );
 }

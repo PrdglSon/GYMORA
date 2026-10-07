@@ -137,6 +137,9 @@ r.post('/transactions', ah(async (req, res) => {
   if (!['Cash', 'GCash', 'Card', 'Online', 'Other'].includes(paymentMethod)) throw new ApiError(400, 'Choose a payment method.');
   const online = paymentMethod === 'Online';
   const pm = online ? await gymPaymongo(req.gymId) : null;
+  const allowed = pm ? (pm.gym.paymongo.methods?.length ? pm.gym.paymongo.methods : ['card', 'gcash', 'paymaya']) : [];
+  if (online && req.body.onlineChannel && !allowed.includes(req.body.onlineChannel)) throw new ApiError(400, 'That payment method is not turned on in Settings → Online payments.');
+  const channelMethods = online && req.body.onlineChannel ? [req.body.onlineChannel] : allowed;
   const settings = req.gym.settings;
   const member = req.body.memberId ? await Member.findOne({ _id: req.body.memberId, gym: req.gymId }) : null;
   const discountRate = Math.min(Math.max(Number(req.body.discountRate) || 0, 0), 0.5);
@@ -184,7 +187,7 @@ r.post('/transactions', ah(async (req, res) => {
         reference: tx.transactionNo,
         successUrl: `${site}/payment-done?ref=${tx.transactionNo}`,
         cancelUrl: `${site}/payment-done?cancelled=1&ref=${tx.transactionNo}`,
-        methods: pm.gym.paymongo.methods?.length ? pm.gym.paymongo.methods : ['card', 'gcash', 'paymaya'],
+        methods: channelMethods,
         billing: member ? { name: `${member.firstName} ${member.lastName}`, email: member.email, phone: member.phoneNumber || undefined } : undefined,
         metadata: { posTransactionId: String(tx._id), gymId: String(req.gymId), transactionNo: tx.transactionNo },
       });
