@@ -56,6 +56,7 @@ import PlatformGyms from './pages/platform/PlatformGyms';
 import MemberBookings from './pages/member/MemberBookings';
 import CoachBookings from './pages/coach/CoachBookings';
 import Bookings from './pages/admin/Bookings';
+import PaymentDone from './pages/public/PaymentDone';
 
 function RequireRole({ roles, portal, children }) {
   const { role, ready } = useAuth();
@@ -95,6 +96,7 @@ export default function App() {
       {['admin', 'staff', 'coach', 'member', 'platform'].map((p) => <Route key={p} path={`/${p}/login`} element={<LoginRoute portal={p} />} />)}
       <Route path="/own-a-gym" element={<RegisterGym />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/payment-done" element={<PaymentDone />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/kiosk/:slug" element={<Kiosk />} />

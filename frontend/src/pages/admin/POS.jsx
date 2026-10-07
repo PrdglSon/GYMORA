@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Autocomplete, Box, Button, ButtonBase, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { Alert, Autocomplete, Box, Button, ButtonBase, CircularProgress, Link, Card, CardContent, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import DeleteOutline from '@mui/icons-material/DeleteOutline';
+import { QRCodeSVG } from 'qrcode.react';
 import api, { errMsg, fileUrl } from '../../api';
 import useFetch from '../../hooks/useFetch';
 import { useAuth } from '../../context/AuthContext';
@@ -16,6 +17,70 @@ import { NameField } from '../../components/ContactFields';
 
 const SWATCH = ['#2B2B2B', '#E8A400', '#B0262B', '#7A4A2A', '#2B6CB0', '#D9572B', '#4B4B4B', '#1E7A4C'];
 const METHODS = ['Cash', 'GCash', 'Card', 'Other'];
+const CHANNEL = { card: 'Card', gcash: 'GCash', paymaya: 'Maya', grab_pay: 'GrabPay', qrph: 'QR Ph' };
+const methodText = (t) => (t.paymentMethod === 'Online' ? `PayMongo${t.online?.channel ? ` · ${CHANNEL[t.online.channel] || t.online.channel}` : ''}` : t.paymentMethod);
+
+function OnlinePayDialog({ tx, onPaid, onClose }) {
+  const toast = useToast();
+  const [status, setStatus] = useState('Pending');
+  const [busy, setBusy] = useState(false);
+  const check = async () => {
+    if (!tx) return;
+    try {
+      const { data } = await api.post(`/pos/transactions/${tx._id}/online-status`);
+      if (data.status === 'Completed') onPaid(data);
+      else setStatus(data.status);
+    } catch (e) {
+      setStatus('Error');
+    }
+  };
+  useEffect(() => {
+    if (!tx) return undefined;
+    setStatus('Pending');
+    const t = setInterval(check, 3000);
+    return () => clearInterval(t);
+  }, [tx?._id]);
+  useSocketEvent('pos:online', (p) => { if (tx && p?.id === tx._id) check(); });
+  const cancel = async () => {
+    setBusy(true);
+    try {
+      await api.post(`/pos/transactions/${tx._id}/cancel-online`);
+      toast('Online payment cancelled. The cart is still here.', 'info');
+      onClose();
+    } catch (e) {
+      toast(errMsg(e), 'error');
+      check();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open={!!tx} maxWidth="xs" fullWidth>
+      {tx && (
+        <>
+          <DialogTitle>Scan to pay · {peso(tx.totalAmount)}</DialogTitle>
+          <DialogContent>
+            <Stack alignItems="center" spacing={1.5}>
+              <Typography variant="body2" textAlign="center">Ask the customer to scan this with their phone camera. They can pay with GCash, card, Maya and the other methods you turned on.</Typography>
+              <Box sx={{ p: 1.5, bgcolor: '#fff', border: `1px solid ${brand.line}`, borderRadius: 2 }}><QRCodeSVG value={tx.online?.checkoutUrl || ''} size={230} /></Box>
+              <Stack direction="row" spacing={1} alignItems="center">
+                {status === 'Pending' && <CircularProgress size={16} />}
+                <Typography variant="body2" fontWeight={700}>{status === 'Pending' ? 'Waiting for payment…' : status === 'Cancelled' ? 'Cancelled' : 'Checking…'}</Typography>
+              </Stack>
+              <Typography variant="caption" color="text.secondary">{tx.transactionNo} · the sale completes and stock updates automatically once PayMongo confirms.</Typography>
+              <Link href={tx.online?.checkoutUrl} target="_blank" rel="noreferrer" variant="body2">Open the payment page on this device instead</Link>
+              {status === 'Error' && <Alert severity="warning">Could not reach PayMongo just now. Still trying…</Alert>}
+            </Stack>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={check}>Check now</Button>
+            <Button color="error" disabled={busy} onClick={cancel}>Cancel payment</Button>
+          </DialogActions>
+        </>
+      )}
+    </Dialog>
+  );
+}
 const round2 = (n) => Math.round(n * 100) / 100;
 const cashierName = (t, fallback) => (t.cashier?.firstName ? `${t.cashier.firstName} ${t.cashier.lastName || ''}`.trim() : fallback || '');
 
@@ -32,7 +97,7 @@ function TxReceipt({ tx, gym, cashier, onClose, title, primary }) {
               <TableRow><TableCell>Subtotal</TableCell><TableCell align="right">{peso(tx.subtotal)}</TableCell></TableRow>
               {tx.discount > 0 && <TableRow><TableCell>Discount ({tx.discountLabel || `${Math.round(tx.discountRate * 100)}%`})</TableCell><TableCell align="right">− {peso(tx.discount)}</TableCell></TableRow>}
               <TableRow><TableCell><b>Total</b></TableCell><TableCell align="right"><b>{peso(tx.totalAmount)}</b></TableCell></TableRow>
-              <TableRow><TableCell>{tx.paymentMethod}{tx.paymentMethod === 'Cash' ? ' tendered' : ''}</TableCell><TableCell align="right">{peso(tx.amountTendered)}</TableCell></TableRow>
+              <TableRow><TableCell>{methodText(tx)}{tx.paymentMethod === 'Cash' ? ' tendered' : ''}</TableCell><TableCell align="right">{peso(tx.amountTendered)}</TableCell></TableRow>
               <TableRow><TableCell sx={{ color: brand.green, fontWeight: 700 }}>Change</TableCell><TableCell align="right" sx={{ color: brand.green, fontWeight: 700 }}>{peso(tx.change)}</TableCell></TableRow>
               {tx.referenceNumber && <TableRow><TableCell>Reference</TableCell><TableCell align="right">{tx.referenceNumber}</TableCell></TableRow>}
             </TableBody></Table>
@@ -83,14 +148,14 @@ function Recent({ gym, role }) {
                   <TableCell sx={{ whiteSpace: 'nowrap' }}>{fdt(t.transactionDate)}</TableCell>
                   <TableCell>{t.customerName}</TableCell>
                   <TableCell sx={{ maxWidth: 260 }}><Typography variant="caption">{t.items.map((i) => `${i.itemName} ×${i.quantity}`).join(', ')}</Typography></TableCell>
-                  <TableCell>{t.paymentMethod}</TableCell>
+                  <TableCell>{methodText(t)}</TableCell>
                   <TableCell align="right"><b>{peso(t.totalAmount)}</b>{t.discount > 0 && <Typography variant="caption" display="block" color="text.secondary">−{peso(t.discount)}</Typography>}</TableCell>
                   <TableCell>{cashierName(t)}</TableCell>
                   <TableCell><StatusChip label={t.status} /></TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={0.5}>
                       <Button size="small" onClick={() => setView(t)}>Receipt</Button>
-                      {role === 'admin' && t.status !== 'Void' && !t.items.some((i) => i.itemType === 'Membership') && <Button size="small" color="error" onClick={() => setVoiding(t)}>Void</Button>}
+                      {role === 'admin' && t.status === 'Completed' && !t.items.some((i) => i.itemType === 'Membership') && <Button size="small" color="error" onClick={() => setVoiding(t)}>Void</Button>}
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -135,6 +200,8 @@ export default function POS() {
   const [ref, setRef] = useState('');
   const [receipt, setReceipt] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [onlineTx, setOnlineTx] = useState(null);
+  const onlineOn = !!gym?.paymongo?.enabled;
   const discounts = gym?.settings?.discounts || [];
   const walkInFee = gym?.settings?.walkInFee || 0;
 
@@ -215,6 +282,10 @@ export default function POS() {
         amountTendered: method === 'Cash' ? Number(tendered) : undefined,
         referenceNumber: ref || undefined,
       });
+      if (data.status === 'Pending') {
+        setOnlineTx(data);
+        return;
+      }
       setReceipt(data);
       clear();
       products.reload();
@@ -315,6 +386,7 @@ export default function POS() {
               </Box>
               <Typography variant="body2" fontWeight={700} sx={{ mt: 1.5, mb: 1 }}>Payment method</Typography>
               <ToggleButtonGroup exclusive fullWidth size="small" value={method} onChange={(_, v) => v && setMethod(v)} color="secondary">{METHODS.map((m) => <ToggleButton key={m} value={m}>{m}</ToggleButton>)}</ToggleButtonGroup>
+              {onlineOn && <ToggleButton fullWidth size="small" sx={{ mt: 0.75 }} value="Online" selected={method === 'Online'} onChange={() => setMethod('Online')} color="secondary">PayMongo · QR (GCash, card, Maya)</ToggleButton>}
               {method === 'Cash' ? (
                 <>
                   <TextField sx={{ mt: 1.5 }} fullWidth size="small" label="Amount tendered" type="number" value={tendered} onChange={(e) => setTendered(e.target.value)} inputProps={{ min: 0, step: 0.01 }} />
@@ -323,15 +395,18 @@ export default function POS() {
                   </Stack>
                   <Stack direction="row" justifyContent="space-between" sx={{ mt: 1 }}><Typography fontWeight={800} sx={{ color: change >= 0 ? brand.green : brand.red }}>{change >= 0 ? 'Change' : 'Short by'}</Typography><Typography fontWeight={800} sx={{ color: change >= 0 ? brand.green : brand.red }}>{peso(Math.abs(change))}</Typography></Stack>
                 </>
+              ) : method === 'Online' ? (
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1.5 }}>A QR code appears. The customer scans it and pays on their phone through PayMongo. The sale finishes by itself once payment is confirmed.</Typography>
               ) : <TextField sx={{ mt: 1.5 }} fullWidth size="small" label="Reference / approval number" value={ref} onChange={(e) => setRef(e.target.value)} />}
               {needMember && <Typography variant="caption" display="block" sx={{ color: brand.red, mt: 1 }}>Choose the member to sell a membership.</Typography>}
               {studentBlocked && <Typography variant="caption" display="block" sx={{ color: brand.red, mt: 1 }}>The student plan needs a verified school ID.</Typography>}
-              <Button fullWidth sx={{ mt: 2 }} variant="contained" color="secondary" disabled={busy || !cart.length || needMember || studentBlocked || (method === 'Cash' && (tendered === '' || change < 0))} onClick={complete}>Complete sale · {peso(total)}</Button>
+              <Button fullWidth sx={{ mt: 2 }} variant="contained" color="secondary" disabled={busy || !cart.length || needMember || studentBlocked || (method === 'Cash' && (tendered === '' || change < 0))} onClick={complete}>{method === 'Online' ? `Show payment QR · ${peso(total)}` : `Complete sale · ${peso(total)}`}</Button>
             </CardContent>
           </Card>
         </Box>
       )}
       <TxReceipt tx={receipt} gym={gym} cashier={me} title="Sale complete" primary="New sale" onClose={() => setReceipt(null)} />
+      <OnlinePayDialog tx={onlineTx} onClose={() => setOnlineTx(null)} onPaid={(done) => { setOnlineTx(null); setReceipt(done); clear(); products.reload(); toast('Payment received. Sale complete.'); }} />
     </Stack>
   );
 }

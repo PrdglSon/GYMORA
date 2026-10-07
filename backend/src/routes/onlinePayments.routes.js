@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { Gym, Member, MembershipPlan, Payment } from '../models/index.js';
+import { Gym, Member, MembershipPlan, Payment, PosTransaction } from '../models/index.js';
+import { completeOnlineSale } from './pos.routes.js';
 import { protect, allow, STAFF } from '../middleware/auth.js';
 import { ah, ApiError, notFound } from '../utils/http.js';
 import { sellMembership, settlePayment } from '../utils/membership.js';
@@ -46,6 +47,19 @@ r.post('/webhook/:gymId', rateLimit({ windowMs: 60 * 1000, max: 60 }), ah(async 
     if (payment) {
       try {
         await confirmOnlinePayment(payment, await gymWithKey(req.params.gymId));
+      } catch (err) {
+        console.error('[paymongo]', err.message);
+      }
+    }
+  }
+  const txId = req.body?.data?.attributes?.data?.attributes?.metadata?.posTransactionId;
+  if (txId && /^[a-f0-9]{24}$/.test(String(txId)) && /^[a-f0-9]{24}$/.test(req.params.gymId)) {
+    const tx = await PosTransaction.findOne({ _id: txId, gym: req.params.gymId, status: 'Pending' });
+    if (tx?.online?.checkoutId) {
+      try {
+        const { secretKey } = await gymWithKey(req.params.gymId);
+        const paid = paidPayment(await getCheckout(secretKey, tx.online.checkoutId));
+        if (paid) await completeOnlineSale(tx, paid);
       } catch (err) {
         console.error('[paymongo]', err.message);
       }
@@ -115,6 +129,19 @@ export async function reconcileOnlinePayments() {
     if (keys[g] === undefined) keys[g] = await gymWithKey(p.gym).catch(() => null);
     if (!keys[g]) continue;
     if ((await confirmOnlinePayment(p, keys[g]).catch(() => 'Pending')) === 'Paid') confirmed++;
+  }
+  const sales = await PosTransaction.find({ status: 'Pending', 'online.checkoutId': { $exists: true } });
+  for (const tx of sales) {
+    const g = String(tx.gym);
+    if (keys[g] === undefined) keys[g] = await gymWithKey(tx.gym).catch(() => null);
+    const paid = keys[g] ? await getCheckout(keys[g].secretKey, tx.online.checkoutId).then(paidPayment).catch(() => null) : null;
+    if (paid) {
+      await completeOnlineSale(tx, paid);
+      confirmed++;
+    } else if (Date.now() - new Date(tx.online.startedAt).getTime() > 24 * 60 * 60 * 1000) {
+      tx.status = 'Cancelled';
+      await tx.save();
+    }
   }
   return confirmed;
 }
