@@ -2,6 +2,7 @@ import { Box, Button, Stack, Typography, Container, Link } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import Logo from '../../components/Logo';
 import GymBrand from '../../components/GymBrand';
+import HomeButton from '../../components/HomeButton';
 import { useAuth, homeFor } from '../../context/AuthContext';
 import { brand } from '../../theme';
 
@@ -18,6 +19,7 @@ export function PublicNav({ links = [], active, onLink, loginTo = '/login', gym 
           ))}
         </Stack>
         <Stack direction="row" spacing={1}>
+          <HomeButton label="GYMORA Home" />
           {role ? (
             <Button variant="contained" onClick={() => navigate(homeFor(role))}>Open dashboard</Button>
           ) : (
@@ -45,7 +47,10 @@ export function PublicFooter({ children }) {
         </Container>
         <Container maxWidth="lg" sx={{ mt: 4, pt: 2, borderTop: '1px solid rgba(255,255,255,0.4)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
           <Typography variant="body2">© {new Date().getFullYear()} GYMORA</Typography>
-          <Link component={RouterLink} to="/privacy" variant="body2" sx={{ color: '#fff' }}>Privacy Policy</Link>
+          <Stack direction="row" spacing={2.5}>
+            <Link component={RouterLink} to="/" variant="body2" sx={{ color: '#fff' }}>GYMORA Home</Link>
+            <Link component={RouterLink} to="/privacy" variant="body2" sx={{ color: '#fff' }}>Privacy Policy</Link>
+          </Stack>
         </Container>
       </Box>
     </Box>
