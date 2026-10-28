@@ -31,7 +31,6 @@ import ApartmentOutlined from '@mui/icons-material/ApartmentOutlined';
 import LogoutOutlined from '@mui/icons-material/LogoutOutlined';
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown';
 import GymBrand from './GymBrand';
-import HomeButton from './HomeButton';
 import NotificationsMenu from './NotificationsMenu';
 import ChangePasswordDialog from './ChangePasswordDialog';
 import { UserAvatar, StatusChip } from './ui';
@@ -155,7 +154,6 @@ export default function AppShell() {
               </Box>
             </Stack>
             <Stack direction="row" spacing={1.5} alignItems="center">
-              <HomeButton compact />
               {role === 'coach' && <CoachAvailability />}
               {role !== 'platform' && <NotificationsMenu />}
               <Stack direction="row" spacing={1} alignItems="center" onClick={(e) => setMenu(e.currentTarget)} sx={{ cursor: 'pointer' }}>

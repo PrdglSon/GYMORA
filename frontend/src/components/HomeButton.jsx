@@ -1,20 +1,26 @@
-import { Button, IconButton, Tooltip } from '@mui/material';
-import HomeOutlined from '@mui/icons-material/HomeOutlined';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { IconButton, Tooltip } from '@mui/material';
+import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { brand } from '../theme';
 
-export default function HomeButton({ compact = false, label = 'Home', sx }) {
+export default function HomeButton({ size = 38, sx }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   if (pathname === '/') return null;
-  if (compact) {
-    return (
-      <Tooltip title="Go to the GYMORA home page">
-        <IconButton component={RouterLink} to="/" aria-label="GYMORA home page" sx={sx}><HomeOutlined /></IconButton>
-      </Tooltip>
-    );
-  }
+  const goBack = () => {
+    const idx = window.history.state?.idx;
+    if (typeof idx === 'number' && idx > 0) navigate(-1);
+    else navigate('/');
+  };
   return (
-    <Button component={RouterLink} to="/" variant="outlined" startIcon={<HomeOutlined />} aria-label="Go to the GYMORA home page" sx={{ whiteSpace: 'nowrap', ...sx }}>
-      {label}
-    </Button>
+    <Tooltip title="Back">
+      <IconButton
+        onClick={goBack}
+        aria-label="Go back"
+        sx={{ width: size, height: size, flex: 'none', border: `1px solid ${brand.line}`, bgcolor: '#fff', color: brand.ink, transition: 'all .15s', '&:hover': { bgcolor: brand.yellowSoft, borderColor: brand.yellow }, ...sx }}
+      >
+        <ArrowBackRounded fontSize="small" />
+      </IconButton>
+    </Tooltip>
   );
 }

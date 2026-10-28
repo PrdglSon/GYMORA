@@ -12,14 +12,16 @@ export function PublicNav({ links = [], active, onLink, loginTo = '/login', gym 
   return (
     <Box component="header" sx={{ position: 'sticky', top: 0, zIndex: 10, bgcolor: '#fff', borderBottom: `1px solid ${brand.line}` }}>
       <Container maxWidth="lg" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, py: 1.5, flexWrap: 'wrap' }}>
-        {gym ? <GymBrand gym={gym} height={30} onClick={() => navigate(`/g/${gym.slug}`)} /> : <Logo height={30} onClick={() => navigate('/')} />}
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+          <HomeButton />
+          {gym ? <GymBrand gym={gym} height={30} onClick={() => navigate(`/g/${gym.slug}`)} /> : <Logo height={30} onClick={() => navigate('/')} />}
+        </Stack>
         <Stack direction="row" spacing={2.5} sx={{ flexWrap: 'wrap' }} useFlexGap>
           {links.map((l) => (
             <Box key={l} component="button" onClick={() => onLink?.(l)} sx={{ background: 'none', border: 0, cursor: 'pointer', font: 'inherit', fontWeight: 600, fontSize: 14, py: 0.5, borderBottom: `2px solid ${active === l ? brand.yellow : 'transparent'}` }}>{l}</Box>
           ))}
         </Stack>
         <Stack direction="row" spacing={1}>
-          <HomeButton label="GYMORA Home" />
           {role ? (
             <Button variant="contained" onClick={() => navigate(homeFor(role))}>Open dashboard</Button>
           ) : (

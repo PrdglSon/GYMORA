@@ -13,7 +13,8 @@ export default function PaymentDone() {
   const Icon = cancelled ? CancelOutlined : CheckCircleOutline;
   return (
     <Box sx={{ minHeight: '100vh', display: 'grid', placeItems: 'center', p: 3, bgcolor: brand.fill }}>
-      <Box sx={{ maxWidth: 420, width: '100%', bgcolor: '#fff', borderRadius: 4, p: 4, textAlign: 'center' }}>
+      <Box sx={{ maxWidth: 420, width: '100%', bgcolor: '#fff', borderRadius: 4, p: 4, textAlign: 'center', position: 'relative' }}>
+        <HomeButton sx={{ position: 'absolute', top: 16, left: 16 }} />
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}><Logo height={28} /></Box>
         <Icon sx={{ fontSize: 72, color: cancelled ? brand.red : brand.green }} />
         <Typography variant="h5" sx={{ mt: 1 }}>{cancelled ? 'Payment cancelled' : 'Payment successful'}</Typography>
@@ -21,7 +22,6 @@ export default function PaymentDone() {
         <Typography variant="body2" sx={{ mt: 2 }}>
           {cancelled ? 'No money was taken. Let the cashier know if you want to try again or pay another way.' : 'Thank you! Show this screen to the cashier. PayMongo also sends a receipt to your email if you gave one. You can close this page.'}
         </Typography>
-        <Box sx={{ mt: 3 }}><HomeButton label="Back to home" /></Box>
       </Box>
     </Box>
   );
