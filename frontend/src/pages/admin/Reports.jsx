@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/FileDownloadOutlined';
@@ -22,72 +22,170 @@ const EXPENSE_CATEGORIES = ['Utilities (electricity, water, internet)', 'Rent', 
 const PAID_WITH = ['Cash', 'GCash', 'Bank transfer', 'Card', 'Other'];
 const dayNum = (d) => dayjs(d).format('D');
 
-function MoneyRow({ label, value, sign, strong, color }) {
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const signed = (n) => `${n < 0 ? '− ' : ''}${peso(Math.abs(n))}`;
+
+function dayFigures(x, date, expenses) {
+  const i = x.revenue.membership.findIndex((d) => d.date === date);
+  const membership = i >= 0 ? x.revenue.membership[i].value : 0;
+  const walkin = i >= 0 ? x.revenue.walkin[i]?.value || 0 : 0;
+  const retail = i >= 0 ? x.revenue.retail[i]?.value || 0 : 0;
+  const items = expenses.filter((e) => isoDay(e.date) === date);
+  const sales = r2(membership + walkin + retail);
+  const spent = r2(items.reduce((a, e) => a + e.amount, 0));
+  return { date, membership, walkin, retail, sales, spent, net: r2(sales - spent), items };
+}
+
+function Figure({ label, value, tone, big, op }) {
+  const color = { in: brand.green, out: brand.red, net: value >= 0 ? brand.ink : brand.red }[tone];
   return (
-    <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ py: 1, borderBottom: strong ? 0 : `1px dashed ${brand.line}` }}>
-      <Typography sx={{ fontWeight: strong ? 800 : 600, fontSize: strong ? 18 : 15 }}>{label}</Typography>
-      <Typography sx={{ fontWeight: 800, fontSize: strong ? 26 : 18, color: color || 'text.primary', fontVariantNumeric: 'tabular-nums' }}>{sign}{peso(value)}</Typography>
-    </Stack>
+    <Box sx={{ position: 'relative', flex: 1, minWidth: { xs: '100%', sm: 0 }, p: { xs: 2, md: 2.5 }, borderRadius: 3, bgcolor: tone === 'net' ? brand.yellowSoft : '#fff', border: `1px solid ${tone === 'net' ? brand.yellow : brand.line}` }}>
+      {op && <Box sx={{ position: 'absolute', left: -27, top: '50%', transform: 'translateY(-50%)', width: 30, height: 30, borderRadius: '50%', bgcolor: '#fff', border: `1px solid ${brand.line}`, display: { xs: 'none', sm: 'grid' }, placeItems: 'center', fontWeight: 800, color: 'text.secondary', zIndex: 1 }}>{op}</Box>}
+      <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 800, color: 'text.secondary' }}>{label}</Typography>
+      <Typography sx={{ mt: 0.5, fontWeight: 800, fontSize: big ? { xs: 28, md: 34 } : { xs: 24, md: 28 }, lineHeight: 1.1, color, fontVariantNumeric: 'tabular-nums' }}>{tone === 'net' ? signed(value) : peso(value)}</Typography>
+    </Box>
   );
 }
 
-function ProfitSummary({ x }) {
-  const p = x.profit;
-  const gain = p.net >= 0;
-  const prevNet = p.previous.net;
-  const change = p.net - prevNet;
+function DailySummary({ x, day, setDay, expenses, onAdd, onEdit, onDelete, loading }) {
+  const d = dayFigures(x, day, expenses);
+  const today = isoDay();
+  const first = `${x.month}-01`;
+  const last = x.isCurrentMonth ? today : dayjs(first).endOf('month').format('YYYY-MM-DD');
+  const move = (n) => setDay(dayjs(day).add(n, 'day').format('YYYY-MM-DD'));
   return (
-    <Section title={`Money in and out · ${x.label}`}>
-      <Grid cols={{ xs: 1, md: '1.2fr 1fr' }} gap={3}>
+    <Section
+      title="Daily sales and expenses"
+      action={(
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          <IconButton size="small" onClick={() => move(-1)} aria-label="Previous day"><ChevronLeft /></IconButton>
+          <TextField type="date" size="small" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} inputProps={{ max: today, 'aria-label': 'Day' }} sx={{ width: 165 }} />
+          <IconButton size="small" onClick={() => move(1)} disabled={day >= today} aria-label="Next day"><ChevronRight /></IconButton>
+          {day !== today && <Button size="small" onClick={() => setDay(today)}>Today</Button>}
+        </Stack>
+      )}
+    >
+      <Typography variant="h6" sx={{ mb: 2 }}>
+        {dayjs(day).format('dddd, MMMM D, YYYY')}
+        {day === today && <Box component="span" sx={{ ml: 1, px: 1, py: 0.2, borderRadius: 1, bgcolor: brand.yellow, color: '#fff', fontSize: 12, fontWeight: 800, verticalAlign: 'middle' }}>TODAY</Box>}
+      </Typography>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1.5, sm: 3 }}>
+        <Figure label="Total sales" value={d.sales} tone="in" />
+        <Figure label="Total expenses" value={d.spent} tone="out" op="−" />
+        <Figure label={d.net >= 0 ? 'Net income' : 'Net loss'} value={d.net} tone="net" op="=" big />
+      </Stack>
+      <Grid cols={{ xs: 1, md: 2 }} gap={3} sx={{ mt: 3 }}>
         <Box>
-          <MoneyRow label="Total sales (money in)" value={p.sales} sign="" color={brand.green} />
-          <MoneyRow label="Total expenses (money out)" value={p.expenses} sign="− " color={brand.red} />
-          <Box sx={{ borderTop: `2px solid ${brand.ink}`, mt: 0.5 }} />
-          <MoneyRow label={gain ? 'Net income (profit)' : 'Net loss'} value={Math.abs(p.net)} sign={gain ? '' : '− '} strong color={gain ? brand.green : brand.red} />
-          <Alert severity={gain ? 'success' : 'warning'} sx={{ mt: 1 }}>
-            {gain
-              ? `The gym earned ${peso(p.sales)} and spent ${peso(p.expenses)} in ${x.label}, so it kept ${peso(p.net)}.`
-              : `The gym spent ${peso(p.expenses)} but only earned ${peso(p.sales)} in ${x.label}, a loss of ${peso(Math.abs(p.net))}.`}
-            {' '}
-            {p.previous.sales || p.previous.expenses
-              ? `That is ${peso(Math.abs(change))} ${change >= 0 ? 'more' : 'less'} than ${p.previous.label} (${prevNet >= 0 ? 'profit' : 'loss'} of ${peso(Math.abs(prevNet))}).`
-              : ''}
-          </Alert>
-          {x.isCurrentMonth && <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>This month is not over yet. Totals so far, up to today.</Typography>}
-        </Box>
-        <Box>
-          <Typography variant="subtitle2" sx={{ mb: 1 }}>Where the sales came from</Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>{day === today ? 'Sales today' : 'Sales this day'}</Typography>
           <Table size="small">
             <TableBody>
-              {[['Memberships', x.totals.byType.membership], ['Walk-in day passes', x.totals.byType.walkin], ['Products (POS)', x.totals.byType.retail], ['Other payments', x.totals.byType.other]].map(([k, v]) => (
-                <TableRow key={k}><TableCell>{k}</TableCell><TableCell align="right">{peso(v)}</TableCell></TableRow>
+              {[['Memberships', d.membership], ['Walk-in day passes', d.walkin], ['Products and other', d.retail]].map(([k, v]) => (
+                <TableRow key={k}><TableCell sx={{ pl: 0 }}>{k}</TableCell><TableCell align="right" sx={{ pr: 0 }}>{peso(v)}</TableCell></TableRow>
               ))}
+              <TableRow><TableCell sx={{ pl: 0, fontWeight: 800, borderBottom: 0 }}>Total sales</TableCell><TableCell align="right" sx={{ pr: 0, fontWeight: 800, borderBottom: 0 }}>{peso(d.sales)}</TableCell></TableRow>
             </TableBody>
           </Table>
-          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Where the money went</Typography>
-          {p.expensesByCategory.length ? (
+        </Box>
+        <Box>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+            <Typography variant="subtitle2">{day === today ? 'Expenses today' : 'Expenses this day'}</Typography>
+            <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => onAdd(day)}>Add expense</Button>
+          </Stack>
+          {loading ? <Typography variant="body2" color="text.secondary">Loading…</Typography> : d.items.length ? (
             <Table size="small">
-              <TableBody>{p.expensesByCategory.map((c) => <TableRow key={c.category}><TableCell>{c.category}</TableCell><TableCell align="right">{peso(c.amount)}</TableCell></TableRow>)}</TableBody>
+              <TableBody>
+                {d.items.map((e) => (
+                  <TableRow key={e._id}>
+                    <TableCell sx={{ pl: 0 }}>
+                      <Typography variant="body2" fontWeight={700}>{e.description}</Typography>
+                      <Typography variant="caption" color="text.secondary">{e.category} · {e.paidWith}</Typography>
+                    </TableCell>
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>{peso(e.amount)}</TableCell>
+                    <TableCell align="right" sx={{ pr: 0, whiteSpace: 'nowrap' }}>
+                      <Button size="small" onClick={() => onEdit(e)}>Edit</Button>
+                      <Button size="small" color="error" onClick={() => onDelete(e)}>Delete</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                <TableRow><TableCell sx={{ pl: 0, fontWeight: 800, borderBottom: 0 }}>Total expenses</TableCell><TableCell align="right" sx={{ fontWeight: 800, borderBottom: 0 }}>{peso(d.spent)}</TableCell><TableCell sx={{ borderBottom: 0 }} /></TableRow>
+              </TableBody>
             </Table>
-          ) : <Typography variant="body2" color="text.secondary">No expenses recorded for this month yet.</Typography>}
+          ) : (
+            <Box sx={{ p: 2, borderRadius: 2, bgcolor: brand.fill, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">No expenses recorded for this day.</Typography>
+            </Box>
+          )}
         </Box>
       </Grid>
+      {(day < first || day > last) && <Typography variant="caption" color="text.secondary">Loading the month for this day…</Typography>}
     </Section>
   );
 }
 
-function Expenses({ month, label, x, onChanged }) {
-  const toast = useToast();
-  const list = useFetch('/expenses', { params: { month } });
-  const blank = () => ({ date: dayjs(`${month}-01`).isSame(dayjs(), 'month') ? isoDay() : dayjs(`${month}-01`).endOf('month').format('YYYY-MM-DD'), description: '', category: 'Supplies (water, cleaning, toiletries)', amount: '', paidWith: 'Cash' });
-  const [edit, setEdit] = useState(null);
-  const [del, setDel] = useState(null);
-  const [busy, setBusy] = useState(false);
+function MonthOverview({ x }) {
+  const p = x.profit;
+  const prev = p.previous;
+  const change = r2(p.net - prev.net);
+  const hasPrev = prev.sales || prev.expenses;
+  const tile = (label, value, color, sub) => (
+    <Box sx={{ p: 2, borderRadius: 3, border: `1px solid ${brand.line}`, bgcolor: '#fff' }}>
+      <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 800, color: 'text.secondary' }}>{label}</Typography>
+      <Typography sx={{ mt: 0.5, fontWeight: 800, fontSize: 24, color, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
+      {sub && <Typography variant="caption" color="text.secondary">{sub}</Typography>}
+    </Box>
+  );
+  return (
+    <Section title={`Monthly overview · ${x.label}`}>
+      <Grid cols={{ xs: 1, sm: 3 }}>
+        {tile('Total sales', peso(p.sales), brand.green, hasPrev ? `${prev.label}: ${peso(prev.sales)}` : null)}
+        {tile('Total expenses', peso(p.expenses), brand.red, hasPrev ? `${prev.label}: ${peso(prev.expenses)}` : null)}
+        {tile(p.net >= 0 ? 'Net income' : 'Net loss', signed(p.net), p.net >= 0 ? brand.ink : brand.red, hasPrev ? `${change >= 0 ? '▲' : '▼'} ${peso(Math.abs(change))} vs ${prev.label}` : null)}
+      </Grid>
+      {x.isCurrentMonth && <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>Month to date, up to today.</Typography>}
+    </Section>
+  );
+}
+
+function DayByDay({ x, expenses, day, setDay, month }) {
   const [showAll, setShowAll] = useState(false);
-  const refresh = () => {
-    list.reload();
-    onChanged();
-  };
+  const today = isoDay();
+  const days = x.revenue.membership.map((d) => dayFigures(x, d.date, expenses)).filter((d) => d.date <= today).reverse();
+  const shown = showAll ? days : days.filter((d) => d.sales || d.spent || d.date === today);
+  const totals = days.reduce((a, d) => ({ sales: a.sales + d.sales, spent: a.spent + d.spent }), { sales: 0, spent: 0 });
+  const net = r2(totals.sales - totals.spent);
+  const csv = () => downloadCsv(`daily-sales-expenses-${month}`, ['Date', 'Sales', 'Expenses', 'Net', 'Expense details'], days.slice().reverse().map((d) => [d.date, d.sales, d.spent, d.net, d.items.map((e) => `${e.description} (${e.amount})`).join('; ')]));
+  return (
+    <Section title={`Every day in ${x.label}`} action={days.length > 0 && <CsvButton onClick={csv} />}>
+      <Box sx={{ overflowX: 'auto' }}>
+        <Table size="small" sx={{ '& td, & th': { whiteSpace: 'nowrap' } }}>
+          <TableHead><TableRow><TableCell>Day</TableCell><TableCell align="right">Sales</TableCell><TableCell align="right">Expenses</TableCell><TableCell align="right">Net</TableCell></TableRow></TableHead>
+          <TableBody>
+            {shown.map((d) => (
+              <TableRow key={d.date} hover selected={d.date === day} onClick={() => { setDay(d.date); window.scrollTo({ top: 0, behavior: 'smooth' }); }} sx={{ cursor: 'pointer' }}>
+                <TableCell>{dayjs(d.date).format('ddd, MMM D')}{d.date === today && <Typography component="span" variant="caption" sx={{ ml: 1, fontWeight: 800, color: brand.yellowInk }}>TODAY</Typography>}</TableCell>
+                <TableCell align="right">{peso(d.sales)}</TableCell>
+                <TableCell align="right">{d.spent ? peso(d.spent) : '—'}</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, color: d.net >= 0 ? brand.green : brand.red }}>{signed(d.net)}</TableCell>
+              </TableRow>
+            ))}
+            {days.length > 0 && (
+              <TableRow sx={{ '& td': { borderTop: `2px solid ${brand.ink}`, fontWeight: 800, borderBottom: 0 } }}>
+                <TableCell>Month total</TableCell><TableCell align="right">{peso(totals.sales)}</TableCell><TableCell align="right">{peso(totals.spent)}</TableCell>
+                <TableCell align="right" sx={{ color: net >= 0 ? brand.green : brand.red }}>{signed(net)}</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+        {days.length !== shown.length && <Button size="small" sx={{ mt: 1 }} onClick={() => setShowAll(true)}>Show all {days.length} days</Button>}
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>Click a day to see its details at the top.</Typography>
+      </Box>
+    </Section>
+  );
+}
+
+function ExpenseDialog({ edit, setEdit, onSaved }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
   const save = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -97,133 +195,29 @@ function Expenses({ month, label, x, onChanged }) {
       else await api.post('/expenses', body);
       toast(edit._id ? 'Expense updated' : 'Expense added');
       setEdit(null);
-      refresh();
+      onSaved();
     } catch (err) {
       toast(errMsg(err), 'error');
     } finally {
       setBusy(false);
     }
   };
-  const remove = async () => {
-    setBusy(true);
-    try {
-      await api.delete(`/expenses/${del._id}`);
-      toast('Expense deleted');
-      setDel(null);
-      refresh();
-    } catch (err) {
-      toast(errMsg(err), 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-  const items = list.data?.items || [];
-  const byDay = {};
-  items.forEach((e) => {
-    const k = isoDay(e.date);
-    (byDay[k] = byDay[k] || []).push(e);
-  });
-  const today = isoDay();
-  const days = x.revenue.membership
-    .map((d, i) => {
-      const sales = Math.round((d.value + (x.revenue.walkin[i]?.value || 0) + (x.revenue.retail[i]?.value || 0)) * 100) / 100;
-      const list2 = byDay[d.date] || [];
-      const spent = Math.round(list2.reduce((a, e) => a + e.amount, 0) * 100) / 100;
-      return { date: d.date, sales, spent, net: Math.round((sales - spent) * 100) / 100, items: list2 };
-    })
-    .filter((d) => d.date <= today)
-    .reverse();
-  const shown = showAll ? days : days.filter((d) => d.sales || d.spent || d.date === today);
-  const totals = days.reduce((a, d) => ({ sales: a.sales + d.sales, spent: a.spent + d.spent }), { sales: 0, spent: 0 });
-  const netColor = (n) => (n >= 0 ? brand.green : brand.red);
-  const csvRows = () => days.slice().reverse().flatMap((d) => [
-    [d.date, 'DAY TOTAL', '', '', d.sales, d.spent, d.net],
-    ...d.items.map((e) => [d.date, e.description, e.category, e.paidWith, '', e.amount, '']),
-  ]);
   return (
-    <Section
-      title={`Daily sales and expenses · ${label}`}
-      action={(
-        <Stack direction="row" spacing={1}>
-          {days.length > 0 && <CsvButton onClick={() => downloadCsv(`daily-${month}`, ['Date', 'Item', 'Category', 'Paid with', 'Sales', 'Expenses', 'Net'], csvRows())} />}
-          <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setEdit(blank())}>Add expense</Button>
-        </Stack>
-      )}
-    >
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Each day shows what the gym earned, what it spent (water jug, bills, repairs…) and what was left. Add an expense on the day it was paid.</Typography>
-      <DataState {...list} onRetry={list.reload}>
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ '& td, & th': { whiteSpace: 'nowrap' } }}>
-            <TableHead>
-              <TableRow>
-                <TableCell>Day</TableCell>
-                <TableCell align="right">Sales</TableCell>
-                <TableCell align="right">− Expenses</TableCell>
-                <TableCell align="right">= Net</TableCell>
-                <TableCell />
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {shown.map((d) => (
-                <Fragment key={d.date}>
-                  <TableRow sx={{ bgcolor: d.date === today ? brand.yellowSoft : brand.fill, '& td': { borderBottom: d.items.length ? 0 : undefined } }}>
-                    <TableCell><b>{dayjs(d.date).format('ddd, MMM D')}</b>{d.date === today && <Typography component="span" variant="caption" sx={{ ml: 1, fontWeight: 800, color: brand.yellowInk }}>TODAY</Typography>}</TableCell>
-                    <TableCell align="right">{peso(d.sales)}</TableCell>
-                    <TableCell align="right">{d.spent ? peso(d.spent) : '—'}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 800, color: netColor(d.net) }}>{d.net < 0 ? '− ' : ''}{peso(Math.abs(d.net))}</TableCell>
-                    <TableCell align="right"><Button size="small" startIcon={<AddIcon fontSize="small" />} onClick={() => setEdit({ ...blank(), date: d.date })}>Expense</Button></TableCell>
-                  </TableRow>
-                  {d.items.map((e, i) => (
-                    <TableRow key={e._id} sx={{ '& td': { borderBottom: i === d.items.length - 1 ? undefined : 0, py: 0.4 } }}>
-                      <TableCell sx={{ pl: 4 }}>
-                        <Typography variant="body2">{e.description}</Typography>
-                        <Typography variant="caption" color="text.secondary">{e.category} · {e.paidWith}{e.recordedByName ? ` · by ${e.recordedByName}` : ''}</Typography>
-                      </TableCell>
-                      <TableCell />
-                      <TableCell align="right"><Typography variant="body2">{peso(e.amount)}</Typography></TableCell>
-                      <TableCell />
-                      <TableCell align="right">
-                        <Button size="small" onClick={() => setEdit({ _id: e._id, date: isoDay(e.date), description: e.description, category: e.category, amount: String(e.amount), paidWith: e.paidWith })}>Edit</Button>
-                        <Button size="small" color="error" onClick={() => setDel(e)}>Delete</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </Fragment>
-              ))}
-              {days.length > 0 && (
-                <TableRow sx={{ '& td': { borderTop: `2px solid ${brand.ink}`, fontWeight: 800 } }}>
-                  <TableCell>Month total</TableCell>
-                  <TableCell align="right">{peso(totals.sales)}</TableCell>
-                  <TableCell align="right">{peso(totals.spent)}</TableCell>
-                  <TableCell align="right" sx={{ color: netColor(totals.sales - totals.spent) }}>{totals.sales - totals.spent < 0 ? '− ' : ''}{peso(Math.abs(totals.sales - totals.spent))}</TableCell>
-                  <TableCell />
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-          {!days.length && <Empty>{label} has not started yet.</Empty>}
-          {days.length > 0 && days.length !== shown.length && (
-            <Button size="small" sx={{ mt: 1 }} onClick={() => setShowAll(true)}>Show all {days.length} days (including days with no sales or expenses)</Button>
-          )}
-        </Box>
-      </DataState>
-      <Dialog open={!!edit} onClose={keepOpenOnTapOutside(() => setEdit(null))} maxWidth="xs" fullWidth PaperProps={{ component: 'form', onSubmit: save }}>
-        <DialogTitle>{edit?._id ? 'Edit expense' : 'Add expense'}</DialogTitle>
-        <DialogContent>
-          {edit && (
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField label="What was paid for" placeholder="e.g. Water jug refill, Meralco bill" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} required />
-              <TextField label="Amount (₱)" type="number" value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} inputProps={{ min: 0.01, step: '0.01' }} required />
-              <TextField label="Date paid" type="date" value={edit.date} onChange={(e) => setEdit({ ...edit, date: e.target.value })} InputLabelProps={{ shrink: true }} inputProps={{ max: isoDay() }} required />
-              <TextField select label="Category" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })}>{EXPENSE_CATEGORIES.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}</TextField>
-              <TextField select label="Paid with" value={edit.paidWith} onChange={(e) => setEdit({ ...edit, paidWith: e.target.value })}>{PAID_WITH.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}</TextField>
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}><Button variant="outlined" onClick={() => setEdit(null)}>Cancel</Button><Button type="submit" variant="contained" disabled={busy}>Save</Button></DialogActions>
-      </Dialog>
-      <ConfirmDialog open={!!del} title="Delete this expense?" message={del ? `${del.description} · ${peso(del.amount)} on ${fdate(del.date)}` : ''} confirmLabel="Delete" danger busy={busy} onClose={() => setDel(null)} onConfirm={remove} />
-    </Section>
+    <Dialog open={!!edit} onClose={keepOpenOnTapOutside(() => setEdit(null))} maxWidth="xs" fullWidth PaperProps={{ component: 'form', onSubmit: save }}>
+      <DialogTitle>{edit?._id ? 'Edit expense' : 'Add expense'}</DialogTitle>
+      <DialogContent>
+        {edit && (
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="What was paid for" placeholder="e.g. Water jug refill, electric bill" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} required autoFocus />
+            <TextField label="Amount (₱)" type="number" value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} inputProps={{ min: 0.01, step: '0.01' }} required />
+            <TextField label="Date paid" type="date" value={edit.date} onChange={(e) => setEdit({ ...edit, date: e.target.value })} InputLabelProps={{ shrink: true }} inputProps={{ max: isoDay() }} required />
+            <TextField select label="Category" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })}>{EXPENSE_CATEGORIES.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}</TextField>
+            <TextField select label="Paid with" value={edit.paidWith} onChange={(e) => setEdit({ ...edit, paidWith: e.target.value })}>{PAID_WITH.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}</TextField>
+          </Stack>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}><Button variant="outlined" onClick={() => setEdit(null)}>Cancel</Button><Button type="submit" variant="contained" disabled={busy}>Save</Button></DialogActions>
+    </Dialog>
   );
 }
 
@@ -249,9 +243,36 @@ function CsvButton({ onClick }) {
 
 export default function Reports() {
   usePageTitle('Reports & Analytics', 'Descriptive reports on revenue, attendance, members, programs and sales.');
+  const toast = useToast();
   const thisMonth = dayjs().format('YYYY-MM');
-  const [month, setMonth] = useState(thisMonth);
+  const [day, setDayRaw] = useState(isoDay());
+  const month = day.slice(0, 7);
+  const setDay = (v) => setDayRaw(v > isoDay() ? isoDay() : v);
+  const setMonth = (m) => setDayRaw(m === thisMonth ? isoDay() : dayjs(`${m}-01`).endOf('month').format('YYYY-MM-DD'));
   const r = useFetch('/reports/analytics', { params: { month } });
+  const exp = useFetch('/expenses', { params: { month } });
+  const expenses = exp.data?.items || [];
+  const [edit, setEdit] = useState(null);
+  const [del, setDel] = useState(null);
+  const [busyDel, setBusyDel] = useState(false);
+  const reloadMoney = () => {
+    exp.reload();
+    r.reload();
+  };
+  const blankExpense = (date) => ({ date, description: '', category: 'Supplies (water, cleaning, toiletries)', amount: '', paidWith: 'Cash' });
+  const removeExpense = async () => {
+    setBusyDel(true);
+    try {
+      await api.delete(`/expenses/${del._id}`);
+      toast('Expense deleted');
+      setDel(null);
+      reloadMoney();
+    } catch (err) {
+      toast(errMsg(err), 'error');
+    } finally {
+      setBusyDel(false);
+    }
+  };
   const x = r.data;
   const hours = Array.from({ length: 18 }, (_, i) => i + 5);
   const methods = x?.methods || [];
@@ -279,6 +300,8 @@ export default function Reports() {
 
   return (
     <Stack spacing={2}>
+      <ExpenseDialog edit={edit} setEdit={setEdit} onSaved={reloadMoney} />
+      <ConfirmDialog open={!!del} title="Delete this expense?" message={del ? `${del.description} · ${peso(del.amount)} on ${fdate(del.date)}` : ''} confirmLabel="Delete" danger busy={busyDel} onClose={() => setDel(null)} onConfirm={removeExpense} />
       <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap spacing={1}>
         <Stack direction="row" spacing={1} alignItems="center">
           <IconButton onClick={() => shift(-1)} aria-label="Previous month"><ChevronLeft /></IconButton>
@@ -291,8 +314,10 @@ export default function Reports() {
       <DataState {...r} onRetry={r.reload}>
         {x && (
           <>
-            <ProfitSummary x={x} />
-            <Expenses month={month} label={x.label} x={x} onChanged={r.reload} />
+            <DailySummary x={x} day={day} setDay={setDay} expenses={expenses} loading={exp.loading && !exp.data} onAdd={(d) => setEdit(blankExpense(d))} onEdit={(e) => setEdit({ _id: e._id, date: isoDay(e.date), description: e.description, category: e.category, amount: String(e.amount), paidWith: e.paidWith })} onDelete={setDel} />
+            <MonthOverview x={x} />
+            <DayByDay x={x} expenses={expenses} day={day} setDay={setDay} month={month} />
+            <Typography variant="overline" sx={{ display: 'block', pt: 1, color: 'text.secondary', fontWeight: 800 }}>Gym analytics · {x.label}</Typography>
             <Grid cols={{ xs: 1, sm: 2, lg: 4 }}>
               <StatCard label="Sales" value={peso0(x.totals.revenue)} sub={`Memberships ${peso0(x.totals.byType.membership)} · Walk-ins ${peso0(x.totals.byType.walkin)} · Products ${peso0(x.totals.byType.retail + x.totals.byType.other)}`} />
               <StatCard label="Check-ins" value={x.totals.checkins} sub={`${(x.totals.checkins / Math.max(x.daysCounted, 1)).toFixed(1)} per day · ${x.totals.walkins} walk-ins (${x.totals.studentWalkins} students)`} />
