@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Payment, PosTransaction, nextCode } from '../models/index.js';
+import { Payment, PosTransaction, Membership, nextCode } from '../models/index.js';
 import { protect, allow, STAFF } from '../middleware/auth.js';
 import { ah, ApiError, requireFields, notFound, paging, escapeRegex } from '../utils/http.js';
 import { settlePayment, cancelMembership } from '../utils/membership.js';
@@ -71,6 +71,41 @@ r.post('/:id/settle', ah(async (req, res) => {
   await settlePayment(p, { method: req.body.paymentMethod || 'Cash', referenceNumber: req.body.referenceNumber, recordedBy: req.account._id });
   if (p.member) await notify(toMember(p.member), { gym: req.gymId, type: 'Payment', title: 'Payment received', message: `${p.description}: ₱${p.amount} (${p.receiptNo}).`, link: '/member/payments', email: true });
   audit(req, 'Payment and Billing', `Marked ${p.receiptNo} as paid (₱${p.amount}, ${p.paymentMethod})`);
+  emitToStaff(req.gymId, 'payments:update', {});
+  res.json(p);
+}));
+
+r.patch('/:id', allow('admin'), ah(async (req, res) => {
+  const p = await Payment.findOne({ _id: req.params.id, gym: req.gymId });
+  if (!p) throw notFound('Payment');
+  if (p.status === 'Void') throw new ApiError(400, 'A voided payment can no longer be edited.');
+  if (p.posTransaction) throw new ApiError(400, 'This payment came from a POS sale. Edit or void the POS transaction instead.');
+  const changes = [];
+  if (req.body.amount !== undefined && req.body.amount !== '') {
+    const amount = Number(req.body.amount);
+    if (!(amount >= 0)) throw new ApiError(400, 'Enter a valid amount.');
+    if (p.online?.checkoutId && amount !== p.amount) throw new ApiError(400, 'The amount of an online (PayMongo) payment cannot be changed.');
+    if (amount !== p.amount) changes.push(`amount ₱${p.amount} → ₱${amount}`);
+    p.amount = amount;
+  }
+  if (req.body.paymentDate) {
+    const d = new Date(req.body.paymentDate);
+    if (Number.isNaN(d.getTime())) throw new ApiError(400, 'Payment date is not valid.');
+    if (d > new Date()) throw new ApiError(400, 'Payment date cannot be in the future.');
+    if (p.status !== 'Paid') throw new ApiError(400, 'Mark the payment as paid first.');
+    changes.push(`date → ${d.toDateString()}`);
+    p.paymentDate = d;
+  }
+  if (req.body.paymentMethod && p.status === 'Paid' && !p.online?.checkoutId) {
+    if (!['Cash', 'GCash', 'Card', 'Other'].includes(req.body.paymentMethod)) throw new ApiError(400, 'Choose Cash, GCash, Card or Other.');
+    if (req.body.paymentMethod !== p.paymentMethod) changes.push(`method ${p.paymentMethod} → ${req.body.paymentMethod}`);
+    p.paymentMethod = req.body.paymentMethod;
+  }
+  if (req.body.referenceNumber !== undefined) p.referenceNumber = req.body.referenceNumber || undefined;
+  if (req.body.description) p.description = String(req.body.description).slice(0, 200);
+  await p.save();
+  if (p.membership && req.body.amount !== undefined && req.body.amount !== '') await Membership.updateOne({ _id: p.membership }, { price: p.amount });
+  audit(req, 'Payment and Billing', `Edited ${p.receiptNo}${changes.length ? `: ${changes.join(', ')}` : ''}`);
   emitToStaff(req.gymId, 'payments:update', {});
   res.json(p);
 }));

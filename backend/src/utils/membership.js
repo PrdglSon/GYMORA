@@ -127,3 +127,60 @@ export async function cancelMembership(membershipId) {
   await member.save();
   return member;
 }
+
+export async function resyncCurrent(member) {
+  const all = await Membership.find({ member: member._id, status: 'Active', endDate: { $ne: null } }).sort({ endDate: -1, createdAt: -1 });
+  const last = all[0];
+  if (!last) {
+    member.current = undefined;
+    await member.save();
+    return member;
+  }
+  let start = startOfDay(last.startDate);
+  for (const m of all.slice(1)) {
+    if (startOfDay(m.endDate) >= addDays(start, -1)) {
+      if (startOfDay(m.startDate) < start) start = startOfDay(m.startDate);
+    } else break;
+  }
+  member.current = { membership: last._id, plan: last.plan, planName: last.planName, startDate: start, endDate: last.endDate };
+  await member.save();
+  return member;
+}
+
+export function parseDay(value, label) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) throw new ApiError(400, `${label} is not a valid date.`);
+  return startOfDay(d);
+}
+
+export async function recordExistingMembership({ gym, member, plan, startDate, endDate, amount, paymentDate, method = 'Cash', referenceNumber, recordPayment = true, recordedBy }) {
+  const start = parseDay(startDate, 'Membership start date');
+  if (!start) throw new ApiError(400, 'Enter when the current membership started.');
+  const end = parseDay(endDate, 'Membership end date') || addDays(start, plan.duration - 1);
+  if (end < start) throw new ApiError(400, 'The membership end date must be on or after the start date.');
+  const price = amount === undefined || amount === null || amount === '' ? plan.price : Number(amount);
+  if (!(price >= 0)) throw new ApiError(400, 'Enter a valid amount.');
+  const membership = await Membership.create({ gym, member: member._id, plan: plan._id, planName: plan.planName, price, status: 'Active', startDate: start, endDate: end, createdBy: recordedBy, fromPreviousRecords: true });
+  let payment = null;
+  if (recordPayment && price > 0) {
+    const paidOn = parseDay(paymentDate, 'Payment date') || start;
+    payment = await Payment.create({
+      gym,
+      receiptNo: await nextCode(gym, 'receipt'),
+      paymentType: 'Membership',
+      membership: membership._id,
+      member: member._id,
+      payerName: `${member.firstName} ${member.lastName}`,
+      description: `${plan.planName} membership (from previous records)`,
+      amount: price,
+      paymentMethod: ['Cash', 'GCash', 'Card', 'Other'].includes(method) ? method : 'Cash',
+      referenceNumber,
+      status: 'Paid',
+      paymentDate: paidOn,
+      recordedBy,
+    });
+  }
+  await resyncCurrent(member);
+  return { membership, payment };
+}

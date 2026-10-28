@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import dayjs from 'dayjs';
 import { Box, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import useFetch from '../../hooks/useFetch';
 import { useSocketEvent } from '../../context/SocketContext';
@@ -12,10 +13,12 @@ const STATUSES = ['Pending', 'Approved', 'Completed', 'Declined', 'Cancelled', '
 export default function Bookings() {
   usePageTitle('Coach Bookings', 'Booking requests, approvals, cancellations and coach utilization.');
   const [filter, setFilter] = useState({ status: '', coach: '', from: '', to: '' });
-  const [days, setDays] = useState(30);
+  const thisMonth = dayjs().format('YYYY-MM');
+  const [month, setMonth] = useState(thisMonth);
+  const monthLabel = dayjs(`${month}-01`).format('MMMM YYYY');
   const params = Object.fromEntries(Object.entries(filter).filter(([, v]) => v));
   const list = useFetch('/bookings', { params });
-  const stats = useFetch('/bookings/stats', { params: { days } });
+  const stats = useFetch('/bookings/stats', { params: { month } });
   const coaches = useFetch('/coaches', { initial: [] });
   useSocketEvent('booking:update', () => { list.reload(); stats.reload(); });
   const reload = () => { list.reload(); stats.reload(); };
@@ -27,12 +30,10 @@ export default function Bookings() {
   return (
     <Stack spacing={2}>
       <Stack direction="row" justifyContent="flex-end">
-        <TextField select size="small" label="Report period" value={days} onChange={(e) => setDays(e.target.value)} sx={{ minWidth: 170 }}>
-          {[7, 30, 90, 365].map((d) => <MenuItem key={d} value={d}>Last {d} days</MenuItem>)}
-        </TextField>
+        <TextField type="month" size="small" label="Report month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} InputLabelProps={{ shrink: true }} inputProps={{ max: dayjs().add(1, 'month').format('YYYY-MM') }} sx={{ minWidth: 170 }} />
       </Stack>
       <Grid cols={{ xs: 2, md: 5 }}>
-        <StatCard label="Total bookings" value={s?.total ?? '—'} sub={`last ${days} days`} />
+        <StatCard label="Total bookings" value={s?.total ?? '—'} sub={monthLabel} />
         <StatCard label="Awaiting approval" value={st.Pending ?? '—'} sub="pending requests" />
         <StatCard label="Upcoming sessions" value={s?.upcoming ?? '—'} sub="approved, from today" />
         <StatCard label="Completed" value={st.Completed ?? '—'} sub={`${pct(st.Completed || 0, finished)}% show-up rate`} />

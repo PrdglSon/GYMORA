@@ -17,6 +17,7 @@ const schema = new mongoose.Schema(
     timeOut: Date,
     method: { type: String, enum: STORED_METHODS, required: true },
     status: { type: String, enum: ['Checked In', 'Checked Out', 'Auto Checked Out'], default: 'Checked In' },
+    guestType: { type: String, enum: ['Regular', 'Student'] },
     payment: { type: ObjectId, ref: 'Payment' },
     recordedBy: { type: ObjectId, ref: 'StaffAdmin' },
   },

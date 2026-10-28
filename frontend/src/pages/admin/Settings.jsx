@@ -11,6 +11,7 @@ import { peso0, fdt } from '../../utils/format';
 import { brand } from '../../theme';
 import { NameField, PhoneField } from '../../components/ContactFields';
 import DeleteAccountDialog from '../../components/DeleteAccountDialog';
+import useDraft, { keepOpenOnTapOutside } from '../../hooks/useDraft';
 
 const GOALS = ['Any', 'Weight Loss', 'Muscle Gain', 'Strength', 'General Fitness', 'Endurance', 'Flexibility'];
 const ROLE_LABEL = { admin: 'Administrator', receptionist: 'Staff' };
@@ -87,7 +88,7 @@ function Operations({ gym, onSaved }) {
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     const g = gym.settings || {};
-    setS({ openTime: g.openTime || '06:00', closeTime: g.closeTime || '22:00', walkInFee: g.walkInFee ?? 0, graceDays: g.graceDays ?? 0, nearExpiryDays: g.nearExpiryDays ?? 7, inactiveDays: g.inactiveDays ?? 14, allowOnlineSignup: !!g.allowOnlineSignup, emailNotifications: !!g.emailNotifications, discounts: (g.discounts || []).map((d) => ({ label: d.label, percent: Math.round((d.rate || 0) * 100) })) });
+    setS({ openTime: g.openTime || '06:00', closeTime: g.closeTime || '22:00', walkInFee: g.walkInFee ?? 0, walkInStudentFee: g.walkInStudentFee ?? g.walkInFee ?? 0, graceDays: g.graceDays ?? 0, nearExpiryDays: g.nearExpiryDays ?? 7, inactiveDays: g.inactiveDays ?? 14, allowOnlineSignup: !!g.allowOnlineSignup, emailNotifications: !!g.emailNotifications, discounts: (g.discounts || []).map((d) => ({ label: d.label, percent: Math.round((d.rate || 0) * 100) })) });
     setLists({ programCategories: (g.programCategories || []).join(', '), specializations: (g.specializations || []).join(', ') });
   }, [gym]);
   if (!s) return null;
@@ -98,7 +99,7 @@ function Operations({ gym, onSaved }) {
     setBusy(true);
     try {
       const settings = {
-        openTime: s.openTime, closeTime: s.closeTime, walkInFee: Number(s.walkInFee), graceDays: Number(s.graceDays), nearExpiryDays: Number(s.nearExpiryDays), inactiveDays: Number(s.inactiveDays),
+        openTime: s.openTime, closeTime: s.closeTime, walkInFee: Number(s.walkInFee), walkInStudentFee: Number(s.walkInStudentFee), graceDays: Number(s.graceDays), nearExpiryDays: Number(s.nearExpiryDays), inactiveDays: Number(s.inactiveDays),
         allowOnlineSignup: s.allowOnlineSignup, emailNotifications: s.emailNotifications,
         discounts: s.discounts.filter((d) => d.label.trim() && Number(d.percent) > 0).map((d) => ({ label: d.label.trim(), rate: Math.min(Number(d.percent), 100) / 100 })),
         programCategories: splitList(lists.programCategories), specializations: splitList(lists.specializations),
@@ -118,7 +119,8 @@ function Operations({ gym, onSaved }) {
         <Grid cols={{ xs: 1, sm: 2, md: 3 }}>
           <TextField type="time" label="Opening time" value={s.openTime} onChange={(e) => up('openTime', e.target.value)} InputLabelProps={{ shrink: true }} />
           <TextField type="time" label="Closing time" value={s.closeTime} onChange={(e) => up('closeTime', e.target.value)} InputLabelProps={{ shrink: true }} helperText="Open visits are auto checked out at closing" />
-          <TextField type="number" label="Walk-in day pass (₱)" value={s.walkInFee} onChange={(e) => up('walkInFee', e.target.value)} inputProps={{ min: 0 }} />
+          <TextField type="number" label="Walk-in day pass · Regular (₱)" value={s.walkInFee} onChange={(e) => up('walkInFee', e.target.value)} inputProps={{ min: 0 }} />
+          <TextField type="number" label="Walk-in day pass · Student (₱)" value={s.walkInStudentFee} onChange={(e) => up('walkInStudentFee', e.target.value)} inputProps={{ min: 0 }} />
           <TextField type="number" label="Grace period after expiry (days)" value={s.graceDays} onChange={(e) => up('graceDays', e.target.value)} inputProps={{ min: 0, max: 30 }} helperText="Members can still check in, with a reminder" />
           <TextField type="number" label="Near-expiry warning (days)" value={s.nearExpiryDays} onChange={(e) => up('nearExpiryDays', e.target.value)} inputProps={{ min: 1, max: 60 }} />
           <TextField type="number" label="Inactive after (days without a visit)" value={s.inactiveDays} onChange={(e) => up('inactiveDays', e.target.value)} inputProps={{ min: 1, max: 365 }} />
@@ -325,7 +327,8 @@ function Staff() {
   const s = useFetch('/settings/staff', { initial: [] });
   const blank = { firstName: '', lastName: '', email: '', phoneNumber: '', role: 'receptionist' };
   const [open, setOpen] = useState(false);
-  const [f, setF] = useState(blank);
+  const [f, setF, clearF] = useDraft('gymora:draft:add-staff', blank);
+  const [createdEmail, setCreatedEmail] = useState('');
   const [temp, setTemp] = useState('');
   const [reset, setReset] = useState(null);
   const [resetTemp, setResetTemp] = useState(null);
@@ -347,6 +350,8 @@ function Staff() {
     setBusy(true);
     try {
       const { data } = await api.post('/settings/staff', f);
+      setCreatedEmail(f.email);
+      clearF();
       if (data.temporaryPassword) setTemp(data.temporaryPassword);
       else setOpen(false);
       toast('Staff account created');
@@ -389,7 +394,7 @@ function Staff() {
     }
   };
   return (
-    <Section title="Staff accounts" action={<Button variant="contained" onClick={() => { setOpen(true); setTemp(''); setF(blank); }}>+ Add staff</Button>}>
+    <Section title="Staff accounts" action={<Button variant="contained" onClick={() => { setOpen(true); setTemp(''); }}>+ Add staff</Button>}>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Administrators can use every page. Staff accounts handle the front desk: members, attendance, billing, POS, inventory, equipment, incidents, support and community. Add coaches from the Coaches page.</Typography>
       {pending.length > 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -436,11 +441,11 @@ function Staff() {
         </Box>
       </DataState>
       <DeleteAccountDialog open={!!del} kind="staff" title={`Delete ${del?.name || 'staff account'}?`} expect={del?.email} onClose={() => setDel(null)} onConfirm={doDelete} />
-      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="xs" fullWidth PaperProps={{ component: 'form', onSubmit: add }}>
+      <Dialog open={open} onClose={keepOpenOnTapOutside(() => setOpen(false))} maxWidth="xs" fullWidth PaperProps={{ component: 'form', onSubmit: add }}>
         <DialogTitle>Add staff account</DialogTitle>
         <DialogContent>
           {temp ? (
-            <Alert severity="success" sx={{ mt: 1 }}>Account created. Login: <b>{f.email}</b>, temporary password <b>{temp}</b>. Share it privately.</Alert>
+            <Alert severity="success" sx={{ mt: 1 }}>Account created. Login: <b>{createdEmail}</b>, temporary password <b>{temp}</b>. Share it privately.</Alert>
           ) : (
             <Stack spacing={2} sx={{ mt: 1 }}>
               <NameField label="First name" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} required />

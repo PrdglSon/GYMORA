@@ -13,6 +13,7 @@ const schema = new mongoose.Schema(
     endDate: Date,
     status: { type: String, enum: ['Pending', 'Active', 'Cancelled'], default: 'Pending' },
     createdBy: { type: ObjectId, ref: 'StaffAdmin' },
+    fromPreviousRecords: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

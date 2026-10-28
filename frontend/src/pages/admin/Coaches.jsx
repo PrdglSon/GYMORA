@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Select, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import api, { errMsg } from '../../api';
 import useFetch from '../../hooks/useFetch';
@@ -9,6 +9,7 @@ import { usePageTitle } from '../../components/AppShell';
 import { DataState, Grid, Section, StatCard, StatusChip, UserAvatar, ConfirmDialog, Empty } from '../../components/ui';
 import { NameField, PhoneField } from '../../components/ContactFields';
 import DeleteAccountDialog from '../../components/DeleteAccountDialog';
+import useDraft, { keepOpenOnTapOutside } from '../../hooks/useDraft';
 
 const blank = { firstName: '', lastName: '', email: '', phoneNumber: '', certification: '', experience: 0, bio: '', specializations: [], activeStatus: 'Active' };
 
@@ -16,6 +17,7 @@ function CoachDialog({ open, coach, onClose, onSaved }) {
   const { gym } = useAuth();
   const toast = useToast();
   const [f, setF] = useState(null);
+  const [draft, setDraft, clearDraft] = useDraft('gymora:draft:add-coach', blank);
   const [temp, setTemp] = useState('');
   const [busy, setBusy] = useState(false);
   const [del, setDel] = useState(false);
@@ -24,8 +26,11 @@ function CoachDialog({ open, coach, onClose, onSaved }) {
     setTemp('');
     setF(coach
       ? { firstName: coach.firstName, lastName: coach.lastName, email: coach.email, phoneNumber: coach.phoneNumber || '', certification: coach.certification || '', experience: coach.experience || 0, bio: coach.bio || '', specializations: coach.specializations || [], activeStatus: coach.activeStatus || 'Active' }
-      : { ...blank });
+      : { ...blank, ...draft });
   };
+  useEffect(() => {
+    if (open && !coach && !temp && f) setDraft(f);
+  }, [f]);
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -38,6 +43,7 @@ function CoachDialog({ open, coach, onClose, onSaved }) {
       } else {
         delete body.activeStatus;
         const { data } = await api.post('/coaches', body);
+        clearDraft();
         setTemp(data.temporaryPassword || '');
         if (!data.temporaryPassword) onClose();
         toast('Coach added');
@@ -50,7 +56,7 @@ function CoachDialog({ open, coach, onClose, onSaved }) {
     }
   };
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth TransitionProps={{ onEnter: init }} PaperProps={{ component: 'form', onSubmit: submit }}>
+    <Dialog open={open} onClose={keepOpenOnTapOutside(onClose)} maxWidth="sm" fullWidth TransitionProps={{ onEnter: init }} PaperProps={{ component: 'form', onSubmit: submit }}>
       <DialogTitle>{coach ? 'Edit coach' : 'Add coach'}</DialogTitle>
       <DialogContent>
         {temp ? (

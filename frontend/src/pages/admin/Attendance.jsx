@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Autocomplete, Box, Button, MenuItem, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
+import { Autocomplete, Box, Button, MenuItem, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import dayjs from 'dayjs';
@@ -74,8 +74,10 @@ export default function Attendance() {
   const [q, setQ] = useState('');
   const list = useFetch('/attendance', { params: { date, attendeeType: type || undefined, method: method || undefined, q: q || undefined }, initial: [] });
   const stats = useFetch('/attendance/stats');
-  const emptyWalk = { fullName: '', phoneNumber: '', email: '', method: 'Cash', referenceNumber: '' };
+  const emptyWalk = { fullName: '', phoneNumber: '', email: '', method: 'Cash', referenceNumber: '', guestType: 'Regular' };
   const [walk, setWalk] = useState(emptyWalk);
+  const regularFee = gym?.settings?.walkInFee ?? 0;
+  const studentFee = gym?.settings?.walkInStudentFee ?? regularFee;
   const [busy, setBusy] = useState(false);
   const reload = () => {
     list.reload();
@@ -99,7 +101,7 @@ export default function Attendance() {
     try {
       const { data } = await api.post('/attendance/walkin', { ...walk, phoneNumber: walk.phoneNumber || undefined, email: walk.email || undefined, referenceNumber: walk.referenceNumber || undefined });
       toast(`${data.guest.fullName} checked in. ${data.payment.status === 'Paid' ? `Collected ${peso(data.payment.amount)}` : 'Payment pending'} (${data.payment.receiptNo})`);
-      setWalk(emptyWalk);
+      setWalk({ ...emptyWalk, guestType: walk.guestType });
       reload();
     } catch (err) {
       toast(errMsg(err), 'error');
@@ -144,13 +146,20 @@ export default function Attendance() {
         </Section>
         <Section title="Register walk-in guest">
           <Stack component="form" spacing={1.5} onSubmit={addWalkin}>
+            <ToggleButtonGroup exclusive fullWidth color="primary" value={walk.guestType} onChange={(_, v) => v && setWalk({ ...walk, guestType: v })} aria-label="Walk-in type">
+              {[['Regular', regularFee], ['Student', studentFee]].map(([t, fee]) => (
+                <ToggleButton key={t} value={t} sx={{ py: 1, textTransform: 'none', fontWeight: 700, '&.Mui-selected': { bgcolor: brand.yellowSoft, borderColor: brand.yellow } }}>
+                  {t}: {peso(fee)}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
             <Grid cols={{ xs: 1, sm: 2 }} gap={1.5}>
               <NameField size="small" label="Guest name" value={walk.fullName} onChange={(e) => setWalk({ ...walk, fullName: e.target.value })} required />
               <PhoneField size="small" label="Phone number" value={walk.phoneNumber} onChange={(e) => setWalk({ ...walk, phoneNumber: e.target.value })} />
               <TextField size="small" select label="Payment" value={walk.method} onChange={(e) => setWalk({ ...walk, method: e.target.value })}>{PAY_METHODS.map((m) => <MenuItem key={m} value={m}>{m === 'Unpaid' ? 'Collect later' : m}</MenuItem>)}</TextField>
               {['GCash', 'Card', 'Other'].includes(walk.method) ? <TextField size="small" label="Reference number" value={walk.referenceNumber} onChange={(e) => setWalk({ ...walk, referenceNumber: e.target.value })} /> : <TextField size="small" label="Email (optional)" type="email" value={walk.email} onChange={(e) => setWalk({ ...walk, email: e.target.value })} />}
             </Grid>
-            <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="body2">Day pass: <b>{peso(gym?.settings?.walkInFee)}</b></Typography><Button type="submit" variant="contained" disabled={busy}>Check in guest</Button></Stack>
+            <Stack direction="row" justifyContent="space-between" alignItems="center"><Typography variant="body2">{walk.guestType} day pass: <b>{peso(walk.guestType === 'Student' ? studentFee : regularFee)}</b></Typography><Button type="submit" variant="contained" disabled={busy}>Check in guest</Button></Stack>
           </Stack>
         </Section>
         <Section title="QR kiosk">
@@ -195,7 +204,7 @@ export default function Attendance() {
                   return (
                     <TableRow key={a._id}>
                       <TableCell><b>{a.name}</b> {a.member?.memberCode && <Typography component="span" variant="caption" color="text.secondary">{a.member.memberCode}</Typography>}</TableCell>
-                      <TableCell><StatusChip label={a.attendeeType} color={a.attendeeType === 'Member' ? 'blue' : 'amber'} /></TableCell>
+                      <TableCell><StatusChip label={a.attendeeType === 'Walk-in' && a.guestType ? `Walk-in · ${a.guestType}` : a.attendeeType} color={a.attendeeType === 'Member' ? 'blue' : 'amber'} /></TableCell>
                       <TableCell>{ftime(a.timeIn)}</TableCell>
                       <TableCell>{a.timeOut ? ftime(a.timeOut) : <StatusChip label="In gym" />}</TableCell>
                       <TableCell>{Math.floor(mins / 60)}h {mins % 60}m</TableCell>

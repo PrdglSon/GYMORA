@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
-import { Gym, CoachSpecialization } from '../models/index.js';
+import { Gym, CoachSpecialization, PlatformAdmin } from '../models/index.js';
 import { protect, signToken, PORTALS, ACCOUNT_MODELS, roleOf } from '../middleware/auth.js';
 import { ah, ApiError, requireFields, pick } from '../utils/http.js';
 import { createGymWithOwner } from '../utils/gymSetup.js';
@@ -91,6 +91,10 @@ r.post('/register-gym', limiter, upload.single('logo'), ah(async (req, res) => {
     }
   }
   sendEmail({ to: admin.email, subject: `Welcome to GYMORA, ${gym.name}`, text: status === 'active' ? `Your gym is ready. Log in at ${env.siteUrl(req)}/admin/login` : 'We received your registration. The GYMORA team will review it soon.' });
+  if (status !== 'active') {
+    const admins = await PlatformAdmin.find().select('email').lean();
+    for (const a of admins) sendEmail({ to: a.email, subject: `New gym waiting for approval: ${gym.name}`, text: `${gym.name} (${req.body.city || 'no city given'}) registered on GYMORA.\nOwner: ${req.body.firstName} ${req.body.lastName} <${req.body.email}>\n\nReview it here: ${env.siteUrl(req)}/platform/gyms` });
+  }
   if (status !== 'active') return res.status(201).json({ pending: true, message: 'Thanks! Your gym is waiting for approval. We will email you when it is live.' });
   res.status(201).json({ token: signToken('StaffAdmin', admin), ...(await sessionPayload('StaffAdmin', admin)) });
 }));

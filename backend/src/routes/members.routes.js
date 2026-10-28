@@ -4,7 +4,7 @@ import { Member, Coach, MembershipPlan, Membership, Payment, Attendance, Enrollm
 import { protect, allow, STAFF } from '../middleware/auth.js';
 import { ah, ApiError, requireFields, pick, notFound, paging, escapeRegex } from '../utils/http.js';
 import { memberDTO, coachDTO } from '../utils/format.js';
-import { sellMembership } from '../utils/membership.js';
+import { sellMembership, recordExistingMembership, resyncCurrent, parseDay } from '../utils/membership.js';
 import { toggleMemberVisit } from '../utils/attendance.js';
 import { notify, notifyStaff, toMember } from '../utils/notify.js';
 import { specializationsByCoach } from '../utils/rules.js';
@@ -119,7 +119,21 @@ r.post('/', allow(...STAFF), ah(async (req, res) => {
   requireFields(req.body, ['firstName', 'lastName', 'email', 'phoneNumber']);
   if (req.body.password && String(req.body.password).length < 8) throw new ApiError(400, 'Password must be at least 8 characters.');
   const password = req.body.password || `Gym${crypto.randomBytes(3).toString('hex')}!`;
+  const existing = req.body.existing === true;
+  const memberSince = existing ? parseDay(req.body.memberSince, 'Member since') : null;
+  if (memberSince && memberSince > startOfDay()) throw new ApiError(400, 'Member since cannot be a future date.');
+  let existingPlan = null;
+  if (existing && req.body.planId) {
+    existingPlan = await MembershipPlan.findOne({ _id: req.body.planId, gym: req.gymId });
+    if (!existingPlan) throw new ApiError(400, 'Unknown plan.');
+    const s0 = parseDay(req.body.startDate, 'Membership start date');
+    if (!s0) throw new ApiError(400, 'Enter when the current membership started.');
+    const e0 = parseDay(req.body.endDate, 'Membership end date');
+    if (e0 && e0 < s0) throw new ApiError(400, 'The membership end date must be on or after the start date.');
+    if (req.body.recordPayment !== false && req.body.amountPaid !== undefined && req.body.amountPaid !== '' && !(Number(req.body.amountPaid) >= 0)) throw new ApiError(400, 'Enter a valid amount paid.');
+  }
   const member = await Member.create({
+    ...(memberSince ? { registrationDate: memberSince } : {}),
     gym: req.gymId,
     email: req.body.email,
     password,
@@ -128,7 +142,9 @@ r.post('/', allow(...STAFF), ah(async (req, res) => {
     student: req.body.isStudent ? { isStudent: true, status: 'verified', school: req.body.school, reviewedBy: req.account._id, reviewedAt: new Date(), note: 'Checked at front desk' } : undefined,
   });
   let payment = null;
-  if (req.body.planId) {
+  if (existingPlan) {
+    ({ payment } = await recordExistingMembership({ gym: req.gymId, member, plan: existingPlan, startDate: req.body.startDate, endDate: req.body.endDate, amount: req.body.amountPaid, paymentDate: req.body.paymentDate, method: req.body.method, referenceNumber: req.body.referenceNumber, recordPayment: req.body.recordPayment !== false, recordedBy: req.account._id }));
+  } else if (req.body.planId && !existing) {
     const plan = await MembershipPlan.findOne({ _id: req.body.planId, gym: req.gymId });
     if (!plan) throw new ApiError(400, 'Unknown plan.');
     const paid = req.body.method && req.body.method !== 'Unpaid';
@@ -139,7 +155,7 @@ r.post('/', allow(...STAFF), ah(async (req, res) => {
     subject: `Welcome to ${req.gym.name}`,
     text: `Hi ${member.firstName},\n\nYour member account at ${req.gym.name} is ready.\n\nMember code: ${member.memberCode}\nLogin: ${env.siteUrl(req)}/member/login?gym=${req.gym.slug}\nEmail: ${member.email}\n${req.body.password ? 'Password: the one you gave at the front desk' : `Temporary password: ${password}`}\n\nYou can change your password after logging in, or use "Forgot password?" on the login page.`,
   });
-  audit(req, 'Member Management', `Registered ${member.firstName} ${member.lastName} (${member.memberCode})`);
+  audit(req, 'Member Management', `${existing ? 'Added existing member' : 'Registered'} ${member.firstName} ${member.lastName} (${member.memberCode})`);
   res.status(201).json({ member: memberDTO(member, req.gym.settings), payment, temporaryPassword: req.body.password ? undefined : password });
 }));
 
@@ -162,6 +178,12 @@ r.get('/:id', allow(...STAFF, 'coach'), ah(async (req, res) => {
 r.patch('/:id', allow(...STAFF), ah(async (req, res) => {
   const m = await loadMember(req, req.params.id);
   Object.assign(m, pick(req.body, [...PROFILE_FIELDS, 'assignedCoach', 'email']));
+  if (req.body.registrationDate !== undefined) {
+    if (req.role !== 'admin') throw new ApiError(403, 'Only the gym administrator can change the member-since date.');
+    const d = parseDay(req.body.registrationDate, 'Member since');
+    if (!d || d > startOfDay()) throw new ApiError(400, 'Member since must be today or an earlier date.');
+    m.registrationDate = d;
+  }
   if (req.body.accountStatus) m.status = req.body.accountStatus === 'inactive' ? 'inactive' : 'active';
   await m.save();
   audit(req, 'Member Management', `Updated ${m.memberCode}`);
@@ -179,6 +201,39 @@ r.post('/:id/memberships', allow(...STAFF), ah(async (req, res) => {
   if (paid) await notify(toMember(m), { gym: req.gymId, type: 'Membership', title: 'Membership renewed', message: `${plan.planName} is active until ${new Date(m.current.endDate).toDateString()}.`, link: '/member/payments', email: true });
   audit(req, 'Payment and Billing', `Sold ${plan.planName} to ${m.memberCode} (${paid ? req.body.method || 'Cash' : 'unpaid'})`);
   res.status(201).json({ member: memberDTO(m, req.gym.settings), ...result });
+}));
+
+r.post('/:id/memberships/existing', allow('admin'), ah(async (req, res) => {
+  requireFields(req.body, ['planId', 'startDate']);
+  const m = await loadMember(req, req.params.id);
+  const plan = await MembershipPlan.findOne({ _id: req.body.planId, gym: req.gymId });
+  if (!plan) throw new ApiError(400, 'Unknown plan.');
+  const result = await recordExistingMembership({ gym: req.gymId, member: m, plan, startDate: req.body.startDate, endDate: req.body.endDate, amount: req.body.amountPaid, paymentDate: req.body.paymentDate, method: req.body.method, referenceNumber: req.body.referenceNumber, recordPayment: req.body.recordPayment !== false, recordedBy: req.account._id });
+  audit(req, 'Member Management', `Added ${plan.planName} from previous records to ${m.memberCode} (${new Date(result.membership.startDate).toDateString()} – ${new Date(result.membership.endDate).toDateString()})`);
+  res.status(201).json({ member: memberDTO(m, req.gym.settings), ...result });
+}));
+
+r.patch('/:id/memberships/:membershipId', allow('admin'), ah(async (req, res) => {
+  const m = await loadMember(req, req.params.id);
+  const ms = await Membership.findOne({ _id: req.params.membershipId, member: m._id, gym: req.gymId });
+  if (!ms) throw notFound('Membership');
+  if (ms.status === 'Cancelled') throw new ApiError(400, 'This membership was cancelled and can no longer be edited.');
+  const start = req.body.startDate !== undefined ? parseDay(req.body.startDate, 'Start date') : ms.startDate;
+  const end = req.body.endDate !== undefined ? parseDay(req.body.endDate, 'End date') : ms.endDate;
+  if (ms.status === 'Active' && (!start || !end)) throw new ApiError(400, 'An active membership needs a start and end date.');
+  if (start && end && end < start) throw new ApiError(400, 'The end date must be on or after the start date.');
+  const before = `${ms.startDate ? new Date(ms.startDate).toDateString() : '—'} – ${ms.endDate ? new Date(ms.endDate).toDateString() : '—'}`;
+  ms.startDate = start;
+  ms.endDate = end;
+  if (req.body.price !== undefined && req.body.price !== '') {
+    const price = Number(req.body.price);
+    if (!(price >= 0)) throw new ApiError(400, 'Enter a valid price.');
+    ms.price = price;
+  }
+  await ms.save();
+  await resyncCurrent(m);
+  audit(req, 'Member Management', `Edited ${ms.planName} for ${m.memberCode}: ${before} → ${new Date(ms.startDate).toDateString()} – ${new Date(ms.endDate).toDateString()}`);
+  res.json({ member: memberDTO(m, req.gym.settings), membership: ms });
 }));
 
 r.delete('/:id', allow('admin'), ah(async (req, res) => {

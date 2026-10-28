@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
-import { Alert, Avatar, Box, Button, Link, Stack, Tab, Tabs, TextField, Typography } from '@mui/material';
+import { Alert, Avatar, Box, Button, Link, Stack, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import { Html5Qrcode } from 'html5-qrcode';
 import api, { errMsg, fileUrl } from '../../api';
 import Logo from '../../components/Logo';
@@ -128,7 +128,7 @@ export default function Kiosk() {
   const [keyInput, setKeyInput] = useState('');
   const [error, setError] = useState('');
   const [tab, setTab] = useState(0);
-  const [guest, setGuest] = useState({ fullName: '', phoneNumber: '' });
+  const [guest, setGuest] = useState({ fullName: '', phoneNumber: '', guestType: 'Regular' });
   const [result, setResult] = useState(null);
   const [camera, setCamera] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -187,7 +187,7 @@ export default function Kiosk() {
     try {
       const { data } = await api.post(`/kiosk/${slug}/walkin`, guest, { headers: { 'x-kiosk-key': key } });
       setResult(data);
-      setGuest({ fullName: '', phoneNumber: '' });
+      setGuest({ fullName: '', phoneNumber: '', guestType: 'Regular' });
     } catch (err) {
       setResult({ ok: false, title: 'Could not register', message: errMsg(err) });
     } finally {
@@ -233,8 +233,12 @@ export default function Kiosk() {
                 {title('Walk-in', 'guest')}
                 <NameField label="Full name" value={guest.fullName} onChange={(e) => setGuest({ ...guest, fullName: e.target.value })} required />
                 <PhoneField label="Phone number" value={guest.phoneNumber} onChange={(e) => setGuest({ ...guest, phoneNumber: e.target.value })} required />
+                <ToggleButtonGroup exclusive fullWidth value={guest.guestType} onChange={(_, v) => v && setGuest({ ...guest, guestType: v })} aria-label="Walk-in type">
+                  <ToggleButton value="Regular" sx={{ textTransform: 'none', fontWeight: 700 }}>Regular: {peso0(gym.walkInFee)}</ToggleButton>
+                  <ToggleButton value="Student" sx={{ textTransform: 'none', fontWeight: 700 }}>Student: {peso0(gym.walkInStudentFee ?? gym.walkInFee)}</ToggleButton>
+                </ToggleButtonGroup>
                 <Button type="submit" variant="contained" size="large" disabled={busy}>Register visit</Button>
-                <Typography variant="caption" color="text.secondary" textAlign="center">Pay the {peso0(gym.walkInFee)} day pass at the front desk.</Typography>
+                <Typography variant="caption" color="text.secondary" textAlign="center">Pay the {peso0(guest.guestType === 'Student' ? (gym.walkInStudentFee ?? gym.walkInFee) : gym.walkInFee)} day pass at the front desk.{guest.guestType === 'Student' ? ' Show your school ID.' : ''}</Typography>
               </Stack>
             )}
             {result && (

@@ -3,6 +3,7 @@ import { Link as RouterLink, useNavigate, useParams, useSearchParams } from 'rea
 import { Alert, Button, Checkbox, FormControlLabel, Link, MenuItem, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import AuthLayout from '../auth/AuthLayout';
 import useFetch from '../../hooks/useFetch';
+import useDraft from '../../hooks/useDraft';
 import api, { errMsg } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Grid, Loading } from '../../components/ui';
@@ -17,7 +18,7 @@ export default function RegisterMember() {
   const navigate = useNavigate();
   const { acceptSession } = useAuth();
   const { data, error: loadError } = useFetch(`/public/gyms/${slug}`);
-  const [f, setF] = useState({ firstName: '', lastName: '', email: '', phoneNumber: '', password: '', fitnessGoal: 'General Fitness', planId: params.get('plan') || '', gender: 'Prefer not to say', birthdate: '', heightCm: '', isStudent: false, school: '' });
+  const [f, setF, clearDraft] = useDraft(`gymora:draft:join:${slug}`, { firstName: '', lastName: '', email: '', phoneNumber: '', password: '', fitnessGoal: 'General Fitness', planId: params.get('plan') || '', gender: 'Prefer not to say', birthdate: '', heightCm: '', isStudent: false, school: '' });
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
@@ -46,6 +47,7 @@ export default function RegisterMember() {
         birthdate: f.birthdate || undefined,
         school: f.isStudent ? f.school : undefined,
       });
+      clearDraft();
       if (res?.token) {
         acceptSession(res);
         if (payWay === 'online' && res.invoiceId) {

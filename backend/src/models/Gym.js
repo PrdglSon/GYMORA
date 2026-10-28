@@ -9,6 +9,7 @@ const settingsSchema = new mongoose.Schema(
     openTime: { type: String, default: '06:00' },
     closeTime: { type: String, default: '22:00' },
     walkInFee: { type: Number, default: 150, min: 0 },
+    walkInStudentFee: { type: Number, default: 100, min: 0 },
     graceDays: { type: Number, default: 3, min: 0 },
     inactiveDays: { type: Number, default: 14, min: 1 },
     nearExpiryDays: { type: Number, default: 7, min: 1 },

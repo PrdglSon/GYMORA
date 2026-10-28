@@ -1,16 +1,176 @@
 import { useMemo, useState } from 'react';
 import dayjs from 'dayjs';
-import { Box, Button, Stack, Table, TableBody, TableCell, TableHead, TableRow, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import { Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/FileDownloadOutlined';
+import ChevronLeft from '@mui/icons-material/ChevronLeft';
+import ChevronRight from '@mui/icons-material/ChevronRight';
+import AddIcon from '@mui/icons-material/Add';
+import api, { errMsg } from '../../api';
 import useFetch from '../../hooks/useFetch';
+import { useToast } from '../../context/ToastContext';
+import { keepOpenOnTapOutside } from '../../hooks/useDraft';
 import { usePageTitle } from '../../components/AppShell';
-import { DataState, Grid, Section, StatCard, StatusChip, Progress, Empty } from '../../components/ui';
+import { DataState, Grid, Section, StatCard, StatusChip, Progress, Empty, ConfirmDialog } from '../../components/ui';
 import { LineChart, BarChart, DonutChart } from '../../components/Charts';
-import { peso0, fdm, hourLabel, pct, isoDay } from '../../utils/format';
+import { peso, peso0, fdate, hourLabel, pct, isoDay } from '../../utils/format';
 import { brand } from '../../theme';
 
 const COLORS = [brand.yellow, brand.orange, brand.green, brand.blue, brand.purple, '#888'];
 const METHOD_COLORS = { Cash: brand.green, GCash: brand.blue, Card: brand.purple, Other: '#888' };
+
+const EXPENSE_CATEGORIES = ['Utilities (electricity, water, internet)', 'Rent', 'Salaries and wages', 'Supplies (water, cleaning, toiletries)', 'Equipment and repairs', 'Products for resale', 'Marketing', 'Other'];
+const PAID_WITH = ['Cash', 'GCash', 'Bank transfer', 'Card', 'Other'];
+const dayNum = (d) => dayjs(d).format('D');
+
+function MoneyRow({ label, value, sign, strong, color }) {
+  return (
+    <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ py: 1, borderBottom: strong ? 0 : `1px dashed ${brand.line}` }}>
+      <Typography sx={{ fontWeight: strong ? 800 : 600, fontSize: strong ? 18 : 15 }}>{label}</Typography>
+      <Typography sx={{ fontWeight: 800, fontSize: strong ? 26 : 18, color: color || 'text.primary', fontVariantNumeric: 'tabular-nums' }}>{sign}{peso(value)}</Typography>
+    </Stack>
+  );
+}
+
+function ProfitSummary({ x }) {
+  const p = x.profit;
+  const gain = p.net >= 0;
+  const prevNet = p.previous.net;
+  const change = p.net - prevNet;
+  return (
+    <Section title={`Money in and out · ${x.label}`}>
+      <Grid cols={{ xs: 1, md: '1.2fr 1fr' }} gap={3}>
+        <Box>
+          <MoneyRow label="Total sales (money in)" value={p.sales} sign="" color={brand.green} />
+          <MoneyRow label="Total expenses (money out)" value={p.expenses} sign="− " color={brand.red} />
+          <Box sx={{ borderTop: `2px solid ${brand.ink}`, mt: 0.5 }} />
+          <MoneyRow label={gain ? 'Net income (profit)' : 'Net loss'} value={Math.abs(p.net)} sign={gain ? '' : '− '} strong color={gain ? brand.green : brand.red} />
+          <Alert severity={gain ? 'success' : 'warning'} sx={{ mt: 1 }}>
+            {gain
+              ? `The gym earned ${peso(p.sales)} and spent ${peso(p.expenses)} in ${x.label}, so it kept ${peso(p.net)}.`
+              : `The gym spent ${peso(p.expenses)} but only earned ${peso(p.sales)} in ${x.label}, a loss of ${peso(Math.abs(p.net))}.`}
+            {' '}
+            {p.previous.sales || p.previous.expenses
+              ? `That is ${peso(Math.abs(change))} ${change >= 0 ? 'more' : 'less'} than ${p.previous.label} (${prevNet >= 0 ? 'profit' : 'loss'} of ${peso(Math.abs(prevNet))}).`
+              : ''}
+          </Alert>
+          {x.isCurrentMonth && <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>This month is not over yet. Totals so far, up to today.</Typography>}
+        </Box>
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Where the sales came from</Typography>
+          <Table size="small">
+            <TableBody>
+              {[['Memberships', x.totals.byType.membership], ['Walk-in day passes', x.totals.byType.walkin], ['Products (POS)', x.totals.byType.retail], ['Other payments', x.totals.byType.other]].map(([k, v]) => (
+                <TableRow key={k}><TableCell>{k}</TableCell><TableCell align="right">{peso(v)}</TableCell></TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>Where the money went</Typography>
+          {p.expensesByCategory.length ? (
+            <Table size="small">
+              <TableBody>{p.expensesByCategory.map((c) => <TableRow key={c.category}><TableCell>{c.category}</TableCell><TableCell align="right">{peso(c.amount)}</TableCell></TableRow>)}</TableBody>
+            </Table>
+          ) : <Typography variant="body2" color="text.secondary">No expenses recorded for this month yet.</Typography>}
+        </Box>
+      </Grid>
+    </Section>
+  );
+}
+
+function Expenses({ month, label, onChanged }) {
+  const toast = useToast();
+  const list = useFetch('/expenses', { params: { month } });
+  const blank = () => ({ date: dayjs(`${month}-01`).isSame(dayjs(), 'month') ? isoDay() : dayjs(`${month}-01`).endOf('month').format('YYYY-MM-DD'), description: '', category: 'Supplies (water, cleaning, toiletries)', amount: '', paidWith: 'Cash' });
+  const [edit, setEdit] = useState(null);
+  const [del, setDel] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const refresh = () => {
+    list.reload();
+    onChanged();
+  };
+  const save = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const body = { date: edit.date, description: edit.description, category: edit.category, amount: edit.amount, paidWith: edit.paidWith };
+      if (edit._id) await api.patch(`/expenses/${edit._id}`, body);
+      else await api.post('/expenses', body);
+      toast(edit._id ? 'Expense updated' : 'Expense added');
+      setEdit(null);
+      refresh();
+    } catch (err) {
+      toast(errMsg(err), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await api.delete(`/expenses/${del._id}`);
+      toast('Expense deleted');
+      setDel(null);
+      refresh();
+    } catch (err) {
+      toast(errMsg(err), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const items = list.data?.items || [];
+  return (
+    <Section
+      title={`Expenses · ${label}`}
+      action={(
+        <Stack direction="row" spacing={1}>
+          {items.length > 0 && <CsvButton onClick={() => downloadCsv(`expenses-${month}`, ['Date', 'Description', 'Category', 'Paid with', 'Amount'], items.map((x) => [isoDay(x.date), x.description, x.category, x.paidWith, x.amount]))} />}
+          <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setEdit(blank())}>Add expense</Button>
+        </Stack>
+      )}
+    >
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Record what the gym paid for, like a water jug refill, the electric bill or repairs. The total is subtracted from sales above.</Typography>
+      <DataState {...list} onRetry={list.reload}>
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table size="small">
+            <TableHead><TableRow><TableCell>Date</TableCell><TableCell>What was paid for</TableCell><TableCell>Category</TableCell><TableCell>Paid with</TableCell><TableCell align="right">Amount</TableCell><TableCell /></TableRow></TableHead>
+            <TableBody>
+              {items.map((x) => (
+                <TableRow key={x._id}>
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>{fdate(x.date)}</TableCell>
+                  <TableCell><b>{x.description}</b>{x.recordedByName && <Typography variant="caption" display="block" color="text.secondary">added by {x.recordedByName}</Typography>}</TableCell>
+                  <TableCell>{x.category}</TableCell>
+                  <TableCell>{x.paidWith}</TableCell>
+                  <TableCell align="right">{peso(x.amount)}</TableCell>
+                  <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                    <Button size="small" onClick={() => setEdit({ _id: x._id, date: isoDay(x.date), description: x.description, category: x.category, amount: String(x.amount), paidWith: x.paidWith })}>Edit</Button>
+                    <Button size="small" color="error" onClick={() => setDel(x)}>Delete</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {items.length > 0 && <TableRow><TableCell colSpan={4}><b>Total expenses</b></TableCell><TableCell align="right"><b>{peso(list.data.total)}</b></TableCell><TableCell /></TableRow>}
+            </TableBody>
+          </Table>
+          {!items.length && <Empty>No expenses recorded for {label}.</Empty>}
+        </Box>
+      </DataState>
+      <Dialog open={!!edit} onClose={keepOpenOnTapOutside(() => setEdit(null))} maxWidth="xs" fullWidth PaperProps={{ component: 'form', onSubmit: save }}>
+        <DialogTitle>{edit?._id ? 'Edit expense' : 'Add expense'}</DialogTitle>
+        <DialogContent>
+          {edit && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField label="What was paid for" placeholder="e.g. Water jug refill, Meralco bill" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} required />
+              <TextField label="Amount (₱)" type="number" value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} inputProps={{ min: 0.01, step: '0.01' }} required />
+              <TextField label="Date paid" type="date" value={edit.date} onChange={(e) => setEdit({ ...edit, date: e.target.value })} InputLabelProps={{ shrink: true }} inputProps={{ max: isoDay() }} required />
+              <TextField select label="Category" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })}>{EXPENSE_CATEGORIES.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}</TextField>
+              <TextField select label="Paid with" value={edit.paidWith} onChange={(e) => setEdit({ ...edit, paidWith: e.target.value })}>{PAID_WITH.map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}</TextField>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}><Button variant="outlined" onClick={() => setEdit(null)}>Cancel</Button><Button type="submit" variant="contained" disabled={busy}>Save</Button></DialogActions>
+      </Dialog>
+      <ConfirmDialog open={!!del} title="Delete this expense?" message={del ? `${del.description} · ${peso(del.amount)} on ${fdate(del.date)}` : ''} confirmLabel="Delete" danger busy={busy} onClose={() => setDel(null)} onConfirm={remove} />
+    </Section>
+  );
+}
 
 function downloadCsv(name, headers, rows) {
   const esc = (v) => {
@@ -34,33 +194,20 @@ function CsvButton({ onClick }) {
 
 export default function Reports() {
   usePageTitle('Reports & Analytics', 'Descriptive reports on revenue, attendance, members, programs and sales.');
-  const [days, setDays] = useState(30);
-  const from = dayjs().subtract(days - 1, 'day').format('YYYY-MM-DD');
-  const r = useFetch('/reports/analytics', { params: { days } });
-  const pays = useFetch('/payments', { params: { status: 'Paid', from, limit: 200 } });
-  const pos = useFetch('/pos/transactions', { params: { days, limit: 200 } });
+  const thisMonth = dayjs().format('YYYY-MM');
+  const [month, setMonth] = useState(thisMonth);
+  const r = useFetch('/reports/analytics', { params: { month } });
   const x = r.data;
   const hours = Array.from({ length: 18 }, (_, i) => i + 5);
-
-  const methods = useMemo(() => {
-    const totals = {};
-    const add = (m, amt) => {
-      const k = m && m !== 'Unpaid' ? m : 'Other';
-      totals[k] = totals[k] || { method: k, count: 0, amount: 0 };
-      totals[k].count += 1;
-      totals[k].amount += Number(amt) || 0;
-    };
-    (pays.data?.items || []).forEach((p) => add(p.paymentMethod, p.amount));
-    (pos.data?.items || []).filter((t) => t.status === 'Completed' && t.productAmount > 0).forEach((t) => add(t.paymentMethod, t.productAmount));
-    return Object.values(totals).sort((a, b) => b.amount - a.amount);
-  }, [pays.data, pos.data]);
-  const methodsPartial = (pays.data && pays.data.total > (pays.data.items || []).length) || (pos.data && pos.data.total > (pos.data.items || []).length);
+  const methods = x?.methods || [];
+  const shift = (n) => setMonth(dayjs(`${month}-01`).add(n, 'month').format('YYYY-MM'));
+  const monthLabel = dayjs(`${month}-01`).format('MMMM YYYY');
 
   const weekdays = useMemo(() => {
     if (!x) return [];
     const sums = Array(7).fill(0);
     const counts = Array(7).fill(0);
-    x.checkins.forEach((d) => {
+    x.checkins.filter((d) => !dayjs(d.date).isAfter(dayjs(), 'day')).forEach((d) => {
       const w = dayjs(d.date).day();
       sums[w] += d.value;
       counts[w] += 1;
@@ -68,48 +215,58 @@ export default function Reports() {
     return sums.map((s, i) => (counts[i] ? Math.round((s / counts[i]) * 10) / 10 : 0));
   }, [x]);
 
-  const revenueRows = () => x.revenue.membership.map((d, i) => [d.date, d.value, x.revenue.walkin[i]?.value || 0, x.revenue.retail[i]?.value || 0, Math.round((d.value + (x.revenue.walkin[i]?.value || 0) + (x.revenue.retail[i]?.value || 0)) * 100) / 100]);
+  const revenueRows = () => x.revenue.membership.map((d, i) => {
+    const sales = Math.round((d.value + (x.revenue.walkin[i]?.value || 0) + (x.revenue.retail[i]?.value || 0)) * 100) / 100;
+    const spent = x.revenue.expenses[i]?.value || 0;
+    return [d.date, d.value, x.revenue.walkin[i]?.value || 0, x.revenue.retail[i]?.value || 0, sales, spent, Math.round((sales - spent) * 100) / 100];
+  });
   const attendanceRows = () => x.checkins.map((d, i) => [d.date, d.value, x.newMembers[i]?.value || 0]);
 
   return (
     <Stack spacing={2}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" useFlexGap spacing={1}>
-        <ToggleButtonGroup exclusive size="small" value={days} onChange={(_, v) => v && setDays(v)}>
-          {[7, 30, 90, 365].map((d) => <ToggleButton key={d} value={d}>{d === 365 ? '1 year' : `Last ${d} days`}</ToggleButton>)}
-        </ToggleButtonGroup>
-        <Typography variant="caption" color="text.secondary">Descriptive reports only, based on recorded data. No forecasting.</Typography>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <IconButton onClick={() => shift(-1)} aria-label="Previous month"><ChevronLeft /></IconButton>
+          <TextField type="month" size="small" label="Report month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} InputLabelProps={{ shrink: true }} inputProps={{ max: thisMonth }} sx={{ width: 190 }} />
+          <IconButton onClick={() => shift(1)} disabled={month >= thisMonth} aria-label="Next month"><ChevronRight /></IconButton>
+          {month !== thisMonth && <Button size="small" onClick={() => setMonth(thisMonth)}>This month</Button>}
+        </Stack>
+        <Typography variant="caption" color="text.secondary">Showing {monthLabel}. Descriptive reports only, based on recorded data.</Typography>
       </Stack>
       <DataState {...r} onRetry={r.reload}>
         {x && (
           <>
+            <ProfitSummary x={x} />
+            <Expenses month={month} label={x.label} onChanged={r.reload} />
             <Grid cols={{ xs: 1, sm: 2, lg: 4 }}>
-              <StatCard label="Revenue" value={peso0(x.totals.revenue)} sub={`Memberships ${peso0(x.totals.byType.membership)} · Walk-ins ${peso0(x.totals.byType.walkin)} · Products ${peso0(x.totals.byType.retail + x.totals.byType.other)}`} />
-              <StatCard label="Check-ins" value={x.totals.checkins} sub={`${(x.totals.checkins / x.days).toFixed(1)} per day · ${x.totals.walkins} walk-ins`} />
-              <StatCard label="Retention" value={`${x.totals.retention}%`} sub={`${x.totals.currentMembers} of ${x.totals.totalMembers} memberships current`} />
-              <StatCard label="New members" value={x.totals.newMembers} sub={`in the last ${x.days} days`} />
+              <StatCard label="Sales" value={peso0(x.totals.revenue)} sub={`Memberships ${peso0(x.totals.byType.membership)} · Walk-ins ${peso0(x.totals.byType.walkin)} · Products ${peso0(x.totals.byType.retail + x.totals.byType.other)}`} />
+              <StatCard label="Check-ins" value={x.totals.checkins} sub={`${(x.totals.checkins / Math.max(x.daysCounted, 1)).toFixed(1)} per day · ${x.totals.walkins} walk-ins (${x.totals.studentWalkins} students)`} />
+              <StatCard label="Retention" value={`${x.totals.retention}%`} sub={`${x.totals.currentMembers} of ${x.totals.totalMembers} memberships current today`} />
+              <StatCard label="New members" value={x.totals.newMembers} sub={`joined in ${x.label}`} />
             </Grid>
             <Grid cols={{ xs: 1, md: 2 }}>
               <Section
-                title="Revenue by source"
-                action={<CsvButton onClick={() => downloadCsv('revenue', ['Date', 'Memberships', 'Walk-ins', 'Products & other', 'Total'], revenueRows())} />}
+                title={`Daily sales and expenses · ${x.label}`}
+                action={<CsvButton onClick={() => downloadCsv(`sales-${month}`, ['Date', 'Memberships', 'Walk-ins', 'Products & other', 'Total sales', 'Expenses', 'Net'], revenueRows())} />}
               >
                 <LineChart
                   legend
                   money
                   height={240}
-                  labels={x.revenue.membership.map((d) => fdm(d.date))}
+                  labels={x.revenue.membership.map((d) => dayNum(d.date))}
                   series={[
                     { label: 'Memberships', data: x.revenue.membership.map((d) => d.value), color: brand.yellow },
                     { label: 'Walk-ins', data: x.revenue.walkin.map((d) => d.value), color: brand.green },
                     { label: 'Products & other', data: x.revenue.retail.map((d) => d.value), color: brand.orange },
+                    { label: 'Expenses', data: x.revenue.expenses.map((d) => d.value), color: brand.red },
                   ]}
                 />
               </Section>
               <Section
-                title="Attendance trend"
-                action={<CsvButton onClick={() => downloadCsv('attendance', ['Date', 'Check-ins', 'New members'], attendanceRows())} />}
+                title={`Daily check-ins · ${x.label}`}
+                action={<CsvButton onClick={() => downloadCsv(`attendance-${month}`, ['Date', 'Check-ins', 'New members'], attendanceRows())} />}
               >
-                <BarChart height={240} labels={x.checkins.map((d) => fdm(d.date))} data={x.checkins.map((d) => d.value)} color={brand.yellow} highlight={x.checkins.length - 1} label="Check-ins" />
+                <BarChart height={240} labels={x.checkins.map((d) => dayNum(d.date))} data={x.checkins.map((d) => d.value)} color={brand.yellow} highlight={x.isCurrentMonth ? x.daysCounted - 1 : undefined} label="Check-ins" />
               </Section>
             </Grid>
             <Grid cols={{ xs: 1, md: 3 }}>
@@ -122,10 +279,10 @@ export default function Reports() {
               </Section>
               <Section title="Busiest days of the week">
                 <BarChart height={200} labels={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']} data={weekdays} highlight={weekdays.indexOf(Math.max(...weekdays))} label="Avg check-ins" />
-                <Typography variant="caption" color="text.secondary">Average check-ins per weekday in this period.</Typography>
+                <Typography variant="caption" color="text.secondary">Average check-ins per weekday in {x.label}.</Typography>
               </Section>
               <Section title="Member growth">
-                <LineChart height={200} labels={x.newMembers.map((d) => fdm(d.date))} series={[{ label: 'New members', data: x.newMembers.map((d) => d.value), color: brand.purple, fill: true }]} />
+                <LineChart height={200} labels={x.newMembers.map((d) => dayNum(d.date))} series={[{ label: 'New members', data: x.newMembers.map((d) => d.value), color: brand.purple, fill: true }]} />
                 <Typography variant="caption" color="text.secondary">{x.totals.newMembers} joined · {x.totals.retention}% of all members have a current membership</Typography>
               </Section>
             </Grid>
@@ -134,7 +291,7 @@ export default function Reports() {
                 {x.planDistribution.length ? <DonutChart sub="current" segments={x.planDistribution.map((p, i) => ({ label: p.plan, value: p.members, color: COLORS[i % COLORS.length] }))} /> : <Empty>No current members.</Empty>}
               </Section>
               <Section title="Payment methods" action={methods.length > 0 && <CsvButton onClick={() => downloadCsv('payment-methods', ['Method', 'Transactions', 'Amount'], methods.map((m) => [m.method, m.count, Math.round(m.amount * 100) / 100]))} />}>
-                <DataState loading={pays.loading || pos.loading} error={pays.error || pos.error} data={pays.data && pos.data} onRetry={() => { pays.reload(); pos.reload(); }}>
+                <>
                   {methods.length ? (
                     <Stack spacing={1.5}>
                       <DonutChart sub="transactions" segments={methods.map((m) => ({ label: m.method, value: m.count, color: METHOD_COLORS[m.method] || '#888' }))} />
@@ -142,10 +299,9 @@ export default function Reports() {
                         <TableHead><TableRow><TableCell>Method</TableCell><TableCell align="right">Transactions</TableCell><TableCell align="right">Amount</TableCell></TableRow></TableHead>
                         <TableBody>{methods.map((m) => <TableRow key={m.method}><TableCell>{m.method}</TableCell><TableCell align="right">{m.count}</TableCell><TableCell align="right">{peso0(m.amount)}</TableCell></TableRow>)}</TableBody>
                       </Table>
-                      {methodsPartial && <Typography variant="caption" color="text.secondary">Based on the latest 200 payments and 200 sales in this period.</Typography>}
                     </Stack>
-                  ) : <Empty>No paid transactions in this period.</Empty>}
-                </DataState>
+                  ) : <Empty>No paid transactions in {x.label}.</Empty>}
+                </>
               </Section>
             </Grid>
             <Grid cols={{ xs: 1, md: '3fr 2fr' }}>
@@ -172,7 +328,7 @@ export default function Reports() {
                   <TableHead><TableRow><TableCell>Product</TableCell><TableCell align="right">Qty</TableCell><TableCell align="right">Sales</TableCell></TableRow></TableHead>
                   <TableBody>{x.topProducts.map((p) => <TableRow key={p.name}><TableCell>{p.name}</TableCell><TableCell align="right">{p.quantity}</TableCell><TableCell align="right">{peso0(p.revenue)}</TableCell></TableRow>)}</TableBody>
                 </Table>
-                {!x.topProducts.length && <Empty>No product sales in this period.</Empty>}
+                {!x.topProducts.length && <Empty>No product sales in {x.label}.</Empty>}
               </Section>
             </Grid>
             <Section

@@ -4,6 +4,7 @@ import { protect, allow, STAFF } from '../middleware/auth.js';
 import { isPersonName } from '../utils/validators.js';
 import { ah, ApiError, requireFields, pick, notFound, escapeRegex, paging } from '../utils/http.js';
 import { sellMembership } from '../utils/membership.js';
+import { walkInPrice } from '../utils/attendance.js';
 import { notify, notifyStaff, toMember } from '../utils/notify.js';
 import { audit } from '../utils/audit.js';
 import { emitToStaff } from '../utils/socket.js';
@@ -102,7 +103,7 @@ async function finalizeSale(gymId, tx, cashierId) {
     if (p) await moveStock(p, -l.quantity, 'Sale', { by: cashierId, posTransaction: tx._id });
   }
   for (const l of lines.filter((x) => x.itemType === 'Walk-in Pass')) {
-    await Payment.create({ gym: gymId, receiptNo: await nextCode(gymId, 'receipt'), paymentType: 'Walk-in', posTransaction: tx._id, payerName: tx.customerName, description: `Walk-in day pass ×${l.quantity} (${tx.transactionNo})`, amount: round2(l.price * l.quantity * ratio), paymentMethod: method, referenceNumber: tx.referenceNumber, status: 'Paid', paymentDate: new Date(), recordedBy: cashierId, ...(tx.online?.checkoutId ? { online: tx.online } : {}) });
+    await Payment.create({ gym: gymId, receiptNo: await nextCode(gymId, 'receipt'), paymentType: 'Walk-in', posTransaction: tx._id, payerName: tx.customerName, description: `${l.itemName || 'Walk-in day pass'} ×${l.quantity} (${tx.transactionNo})`, amount: round2(l.price * l.quantity * ratio), paymentMethod: method, referenceNumber: tx.referenceNumber, status: 'Paid', paymentDate: new Date(), recordedBy: cashierId, ...(tx.online?.checkoutId ? { online: tx.online } : {}) });
   }
   const ms = lines.find((l) => l.itemType === 'Membership');
   if (ms && tx.member) {
@@ -152,7 +153,8 @@ r.post('/transactions', ah(async (req, res) => {
       if (p.stockQuantity < qty) throw new ApiError(409, `Only ${p.stockQuantity} ${p.productName} left in stock.`);
       lines.push({ itemType: 'Product', product: p._id, itemName: p.productName, price: p.price, quantity: qty });
     } else if (it.itemType === 'Walk-in Pass') {
-      lines.push({ itemType: 'Walk-in Pass', itemName: 'Walk-in day pass', price: settings.walkInFee, quantity: qty });
+      const guestType = it.guestType === 'Student' ? 'Student' : 'Regular';
+      lines.push({ itemType: 'Walk-in Pass', itemName: `Walk-in day pass (${guestType})`, price: walkInPrice(settings, guestType), quantity: qty });
     } else if (it.itemType === 'Membership') {
       if (!member) throw new ApiError(400, 'Choose the member before selling a membership.');
       const plan = await MembershipPlan.findOne({ _id: it.planId, gym: req.gymId, status: 'Active' });

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, FormControlLabel, IconButton, MenuItem, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, Typography } from '@mui/material';
+import { Alert, Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Drawer, FormControlLabel, IconButton, MenuItem, Stack, Tab, Table, TableBody, TableCell, TableHead, TableRow, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import dayjs from 'dayjs';
@@ -15,6 +15,7 @@ import { fdate, fdm, fdt, peso, peso0 } from '../../utils/format';
 import { brand } from '../../theme';
 import { NameField, PhoneField } from '../../components/ContactFields';
 import DeleteAccountDialog from '../../components/DeleteAccountDialog';
+import useDraft, { keepOpenOnTapOutside } from '../../hooks/useDraft';
 
 const GOALS = ['Weight Loss', 'Muscle Gain', 'Strength', 'General Fitness', 'Endurance', 'Flexibility'];
 const GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'];
@@ -23,30 +24,50 @@ const METHODS = ['Cash', 'GCash', 'Card', 'Other', 'Unpaid'];
 const methodLabel = (m) => (m === 'Unpaid' ? 'Collect later (unpaid)' : m);
 const STUDENT_COLOR = { verified: 'green', pending: 'amber', rejected: 'red' };
 
+const plusDays = (iso, n) => (iso ? dayjs(iso).add(n, 'day').format('YYYY-MM-DD') : '');
+
 function AddMemberDialog({ open, onClose, plans, onSaved }) {
   const toast = useToast();
-  const empty = { firstName: '', lastName: '', email: '', phoneNumber: '', gender: 'Prefer not to say', birthdate: '', fitnessGoal: 'General Fitness', heightCm: '', address: '', emergencyContact: '', password: '', planId: '', method: 'Cash', referenceNumber: '', isStudent: false, school: '' };
-  const [f, setF] = useState(empty);
+  const active = plans.filter((p) => p.status === 'Active');
+  const empty = { kind: 'new', firstName: '', lastName: '', email: '', phoneNumber: '', gender: 'Prefer not to say', birthdate: '', fitnessGoal: 'General Fitness', heightCm: '', address: '', emergencyContact: '', password: '', planId: '', method: 'Cash', referenceNumber: '', isStudent: false, school: '', memberSince: '', startDate: '', endDate: '', amountPaid: '', paymentDate: '', recordPayment: true };
+  const [f, setF, clearDraft] = useDraft('gymora:draft:add-member', empty);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
-  const active = plans.filter((p) => p.status === 'Active');
+  const existing = f.kind === 'existing';
+  const plan = active.find((p) => String(p._id) === String(f.planId));
   useEffect(() => {
     if (open) {
-      setF({ ...empty, planId: active.find((p) => !p.isStudentPlan)?._id || '' });
       setResult(null);
+      if (!f.planId && !f.firstName && !f.email) setF((x) => ({ ...x, planId: active.find((p) => !p.isStudentPlan)?._id || '' }));
     }
   }, [open]);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const pickPlan = (e) => {
+    const next = active.find((p) => String(p._id) === String(e.target.value));
+    setF({ ...f, planId: e.target.value, amountPaid: next ? String(next.price) : f.amountPaid, endDate: next && f.startDate ? plusDays(f.startDate, next.duration - 1) : f.endDate });
+  };
+  const pickStart = (e) => {
+    const v = e.target.value;
+    setF({ ...f, startDate: v, endDate: plan && v ? plusDays(v, plan.duration - 1) : f.endDate, paymentDate: f.paymentDate || v });
+  };
   const lock = useRef(false);
+  const close = () => {
+    if (result) clearDraft();
+    onClose();
+  };
   const submit = async (e) => {
     e.preventDefault();
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
     try {
-      const body = { ...f, password: f.password || undefined, heightCm: f.heightCm || undefined, birthdate: f.birthdate || undefined, planId: f.planId || undefined, method: f.planId ? f.method : undefined, referenceNumber: f.referenceNumber || undefined };
+      const base = { firstName: f.firstName, lastName: f.lastName, email: f.email, phoneNumber: f.phoneNumber, gender: f.gender, fitnessGoal: f.fitnessGoal, address: f.address, emergencyContact: f.emergencyContact, isStudent: f.isStudent, school: f.school, password: f.password || undefined, heightCm: f.heightCm || undefined, birthdate: f.birthdate || undefined, planId: f.planId || undefined, referenceNumber: f.referenceNumber || undefined };
+      const body = existing
+        ? { ...base, existing: true, memberSince: f.memberSince || undefined, startDate: f.planId ? f.startDate : undefined, endDate: f.planId ? f.endDate || undefined : undefined, amountPaid: f.planId && f.recordPayment ? f.amountPaid : undefined, paymentDate: f.planId && f.recordPayment ? f.paymentDate || f.startDate : undefined, recordPayment: !!f.recordPayment, method: f.planId && f.recordPayment ? (f.method === 'Unpaid' ? 'Cash' : f.method) : undefined }
+        : { ...base, method: f.planId ? f.method : undefined };
       const { data } = await api.post('/members', body);
       setResult(data);
+      clearDraft({ ...empty, kind: f.kind });
       onSaved();
     } catch (err) {
       toast(errMsg(err), 'error');
@@ -55,8 +76,9 @@ function AddMemberDialog({ open, onClose, plans, onSaved }) {
       setBusy(false);
     }
   };
+  const today = dayjs().format('YYYY-MM-DD');
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ component: 'form', onSubmit: submit }}>
+    <Dialog open={open} onClose={keepOpenOnTapOutside(close)} maxWidth="sm" fullWidth PaperProps={{ component: 'form', onSubmit: submit }}>
       <DialogTitle>Add member</DialogTitle>
       <DialogContent>
         {result ? (
@@ -67,11 +89,17 @@ function AddMemberDialog({ open, onClose, plans, onSaved }) {
           </Alert>
         ) : (
           <Stack spacing={2} sx={{ mt: 1 }}>
+            <ToggleButtonGroup exclusive fullWidth value={f.kind} onChange={(_, v) => v && setF({ ...f, kind: v })} aria-label="Member type">
+              <ToggleButton value="new" sx={{ textTransform: 'none', fontWeight: 700 }}>New member</ToggleButton>
+              <ToggleButton value="existing" sx={{ textTransform: 'none', fontWeight: 700 }}>Existing member</ToggleButton>
+            </ToggleButtonGroup>
+            {existing && <Alert severity="info">Use this for people who were already members before the gym started using GYMORA. Enter their original join date and their current membership so their remaining days carry over.</Alert>}
             <Grid cols={{ xs: 1, sm: 2 }}>
               <NameField label="First name" value={f.firstName} onChange={set('firstName')} required />
               <NameField label="Last name" value={f.lastName} onChange={set('lastName')} required />
               <TextField label="Email" type="email" value={f.email} onChange={set('email')} required />
               <PhoneField label="Phone number" value={f.phoneNumber} onChange={set('phoneNumber')} required />
+              {existing && <TextField label="Member since" type="date" value={f.memberSince} onChange={set('memberSince')} InputLabelProps={{ shrink: true }} inputProps={{ max: today }} helperText="The date they first joined the gym" required />}
               <TextField select label="Gender" value={f.gender} onChange={set('gender')}>{GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
               <TextField label="Birthdate" type="date" value={f.birthdate} onChange={set('birthdate')} InputLabelProps={{ shrink: true }} />
               <TextField select label="Fitness goal" value={f.fitnessGoal} onChange={set('fitnessGoal')}>{GOALS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
@@ -83,21 +111,48 @@ function AddMemberDialog({ open, onClose, plans, onSaved }) {
             <FormControlLabel control={<Checkbox checked={f.isStudent} onChange={(e) => setF({ ...f, isStudent: e.target.checked })} />} label="Student (school ID checked at the desk)" />
             {f.isStudent && <TextField label="School" value={f.school} onChange={set('school')} />}
             <Divider />
-            <Grid cols={{ xs: 1, sm: 2 }}>
-              <TextField select label="Membership plan" value={f.planId} onChange={set('planId')}>
-                <MenuItem value="">No plan yet</MenuItem>
-                {active.map((p) => <MenuItem key={p._id} value={p._id} disabled={p.isStudentPlan && !f.isStudent}>{p.planName} · {p.duration} days · {peso0(p.price)}</MenuItem>)}
-              </TextField>
-              {f.planId && <TextField select label="Payment" value={f.method} onChange={set('method')}>{METHODS.map((m) => <MenuItem key={m} value={m}>{methodLabel(m)}</MenuItem>)}</TextField>}
-              {f.planId && ['GCash', 'Card', 'Other'].includes(f.method) && <TextField label="Reference number" value={f.referenceNumber} onChange={set('referenceNumber')} />}
-            </Grid>
-            <Typography variant="caption" color="text.secondary">The member logs in at the Member login with this email. Their login details are emailed to them.</Typography>
+            {existing ? (
+              <>
+                <Typography variant="subtitle2">Current membership</Typography>
+                <Grid cols={{ xs: 1, sm: 2 }}>
+                  <TextField select label="Membership plan" value={f.planId} onChange={pickPlan}>
+                    <MenuItem value="">No active membership</MenuItem>
+                    {active.map((p) => <MenuItem key={p._id} value={p._id}>{p.planName} · {p.duration} days · {peso0(p.price)}</MenuItem>)}
+                  </TextField>
+                  {f.planId && <TextField label="Started on" type="date" value={f.startDate} onChange={pickStart} InputLabelProps={{ shrink: true }} required />}
+                  {f.planId && <TextField label="Ends on" type="date" value={f.endDate} onChange={set('endDate')} InputLabelProps={{ shrink: true }} inputProps={{ min: f.startDate || undefined }} helperText="Filled from the plan length; change it if needed" />}
+                </Grid>
+                {f.planId && (
+                  <>
+                    <FormControlLabel control={<Checkbox checked={!!f.recordPayment} onChange={(e) => setF({ ...f, recordPayment: e.target.checked })} />} label="Record the payment they made (shows in sales reports on the payment date)" />
+                    {f.recordPayment && (
+                      <Grid cols={{ xs: 1, sm: 3 }}>
+                        <TextField label="Amount paid (₱)" type="number" value={f.amountPaid} onChange={set('amountPaid')} inputProps={{ min: 0, step: '0.01' }} />
+                        <TextField label="Paid on" type="date" value={f.paymentDate} onChange={set('paymentDate')} InputLabelProps={{ shrink: true }} inputProps={{ max: today }} />
+                        <TextField select label="Paid with" value={f.method === 'Unpaid' ? 'Cash' : f.method} onChange={set('method')}>{['Cash', 'GCash', 'Card', 'Other'].map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}</TextField>
+                      </Grid>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              <Grid cols={{ xs: 1, sm: 2 }}>
+                <TextField select label="Membership plan" value={f.planId} onChange={set('planId')}>
+                  <MenuItem value="">No plan yet</MenuItem>
+                  {active.map((p) => <MenuItem key={p._id} value={p._id} disabled={p.isStudentPlan && !f.isStudent}>{p.planName} · {p.duration} days · {peso0(p.price)}</MenuItem>)}
+                </TextField>
+                {f.planId && <TextField select label="Payment" value={f.method} onChange={set('method')}>{METHODS.map((m) => <MenuItem key={m} value={m}>{methodLabel(m)}</MenuItem>)}</TextField>}
+                {f.planId && ['GCash', 'Card', 'Other'].includes(f.method) && <TextField label="Reference number" value={f.referenceNumber} onChange={set('referenceNumber')} />}
+              </Grid>
+            )}
+            <Typography variant="caption" color="text.secondary">The member logs in at the Member login with this email. Their login details are emailed to them. What you type here is kept if the window closes by accident.</Typography>
           </Stack>
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button variant="outlined" onClick={onClose}>{result ? 'Done' : 'Cancel'}</Button>
-        {!result && <Button type="submit" variant="contained" disabled={busy}>Register member</Button>}
+        {!result && <Button color="inherit" onClick={() => clearDraft({ ...empty, kind: f.kind })} sx={{ mr: 'auto' }}>Clear form</Button>}
+        <Button variant="outlined" onClick={close}>{result ? 'Done' : 'Close'}</Button>
+        {!result && <Button type="submit" variant="contained" disabled={busy}>{existing ? 'Add existing member' : 'Register member'}</Button>}
       </DialogActions>
     </Dialog>
   );
@@ -121,12 +176,21 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
     if (d.data) {
       const m = d.data.member;
       setRenew((r) => ({ ...r, planId: active.find((p) => String(p._id) === String(m.current?.plan))?._id || active.find((p) => !p.isStudentPlan)?._id || '' }));
-      setEdit({ firstName: m.firstName || '', lastName: m.lastName || '', email: m.email || '', phoneNumber: m.phoneNumber || '', gender: m.gender || 'Prefer not to say', birthdate: m.birthdate ? dayjs(m.birthdate).format('YYYY-MM-DD') : '', fitnessGoal: m.fitnessGoal || 'General Fitness', heightCm: m.heightCm || '', address: m.address || '', emergencyContact: m.emergencyContact || '', assignedCoach: m.assignedCoach || '' });
+      setEdit({ registrationDate: m.registrationDate ? dayjs(m.registrationDate).format('YYYY-MM-DD') : '', firstName: m.firstName || '', lastName: m.lastName || '', email: m.email || '', phoneNumber: m.phoneNumber || '', gender: m.gender || 'Prefer not to say', birthdate: m.birthdate ? dayjs(m.birthdate).format('YYYY-MM-DD') : '', fitnessGoal: m.fitnessGoal || 'General Fitness', heightCm: m.heightCm || '', address: m.address || '', emergencyContact: m.emergencyContact || '', assignedCoach: m.assignedCoach || '' });
     }
   }, [d.data, plans]);
 
   const [dup, setDup] = useState('');
   const [del, setDel] = useState(false);
+  const [msEdit, setMsEdit] = useState(null);
+  const [payEdit, setPayEdit] = useState(null);
+  const [prev, setPrev] = useState(null);
+  const isAdmin = role === 'admin';
+  const openPrev = () => {
+    const p = active.find((x) => !x.isStudentPlan) || active[0];
+    const start = dayjs().format('YYYY-MM-DD');
+    setPrev({ planId: p?._id || '', startDate: start, endDate: p ? plusDays(start, p.duration - 1) : '', amountPaid: p ? String(p.price) : '', paymentDate: start, method: 'Cash', recordPayment: true });
+  };
   const lock = useRef(false);
   const run = async (fn, msg, onError) => {
     if (lock.current) return null;
@@ -220,16 +284,28 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
                     <Typography variant="caption" color="text.secondary">If the current plan is still valid, the new period starts the day after it ends.</Typography>
                     <Button type="submit" variant="contained" disabled={busy || !renew.planId} sx={{ alignSelf: 'flex-start' }}>{m.current?.endDate ? 'Renew membership' : 'Sell membership'}</Button>
                   </Stack>
+                  {isAdmin && (
+                    <Alert severity="info" action={<Button size="small" variant="outlined" onClick={openPrev} disabled={busy}>Add from records</Button>}>
+                      Was this person already a member before GYMORA? Add their current or past membership from your old records. It does not charge them again.
+                    </Alert>
+                  )}
                   <Box sx={{ overflowX: 'auto' }}>
-                    <Table size="small"><TableHead><TableRow><TableCell>Plan</TableCell><TableCell>Start</TableCell><TableCell>End</TableCell><TableCell align="right">Price</TableCell><TableCell>Status</TableCell></TableRow></TableHead>
-                      <TableBody>{d.data.memberships.map((x) => <TableRow key={x._id}><TableCell>{x.planName}</TableCell><TableCell>{fdate(x.startDate)}</TableCell><TableCell>{fdate(x.endDate)}</TableCell><TableCell align="right">{peso(x.price)}</TableCell><TableCell><StatusChip label={x.status} /></TableCell></TableRow>)}</TableBody></Table>
+                    <Table size="small"><TableHead><TableRow><TableCell>Plan</TableCell><TableCell>Start</TableCell><TableCell>End</TableCell><TableCell align="right">Price</TableCell><TableCell>Status</TableCell>{isAdmin && <TableCell />}</TableRow></TableHead>
+                      <TableBody>{d.data.memberships.map((x) => (
+                        <TableRow key={x._id}>
+                          <TableCell>{x.planName}{x.fromPreviousRecords && <Typography variant="caption" display="block" color="text.secondary">from previous records</Typography>}</TableCell>
+                          <TableCell>{fdate(x.startDate)}</TableCell><TableCell>{fdate(x.endDate)}</TableCell><TableCell align="right">{peso(x.price)}</TableCell><TableCell><StatusChip label={x.status} /></TableCell>
+                          {isAdmin && <TableCell>{x.status === 'Active' && <Button size="small" onClick={() => setMsEdit({ _id: x._id, planName: x.planName, startDate: x.startDate ? dayjs(x.startDate).format('YYYY-MM-DD') : '', endDate: x.endDate ? dayjs(x.endDate).format('YYYY-MM-DD') : '', price: String(x.price ?? '') })}>Edit</Button>}</TableCell>}
+                        </TableRow>
+                      ))}</TableBody></Table>
                     {!d.data.memberships.length && <Empty>No memberships yet.</Empty>}
                   </Box>
                 </Stack>
               )}
               {tab === 1 && edit && (
-                <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); run(() => api.patch(`/members/${id}`, { ...edit, heightCm: edit.heightCm || undefined, birthdate: edit.birthdate || undefined, assignedCoach: edit.assignedCoach || null }), 'Member updated'); }}>
+                <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); const { registrationDate, ...rest } = edit; run(() => api.patch(`/members/${id}`, { ...rest, ...(isAdmin && registrationDate ? { registrationDate } : {}), heightCm: edit.heightCm || undefined, birthdate: edit.birthdate || undefined, assignedCoach: edit.assignedCoach || null }), 'Member updated'); }}>
                   <Grid cols={{ xs: 1, sm: 2 }}>
+                    {isAdmin && <TextField label="Member since" type="date" value={edit.registrationDate} onChange={sE('registrationDate')} InputLabelProps={{ shrink: true }} inputProps={{ max: dayjs().format('YYYY-MM-DD') }} helperText="Change this for members who joined before GYMORA" />}
                     <NameField label="First name" value={edit.firstName} onChange={sE('firstName')} required />
                     <NameField label="Last name" value={edit.lastName} onChange={sE('lastName')} required />
                     <TextField label="Email" type="email" value={edit.email} onChange={sE('email')} required />
@@ -254,8 +330,13 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
               )}
               {tab === 2 && (
                 <Box sx={{ overflowX: 'auto' }}>
-                  <Table size="small"><TableHead><TableRow><TableCell>Receipt</TableCell><TableCell>Date</TableCell><TableCell>Description</TableCell><TableCell>Method</TableCell><TableCell align="right">Amount</TableCell><TableCell>Status</TableCell></TableRow></TableHead>
-                    <TableBody>{d.data.payments.map((p) => <TableRow key={p._id}><TableCell>{p.receiptNo}</TableCell><TableCell>{fdate(p.paymentDate || p.createdAt)}</TableCell><TableCell>{p.description}</TableCell><TableCell>{p.paymentMethod}{p.referenceNumber ? ` · ${p.referenceNumber}` : ''}</TableCell><TableCell align="right">{peso(p.amount)}</TableCell><TableCell><StatusChip label={p.status} /></TableCell></TableRow>)}</TableBody></Table>
+                  <Table size="small"><TableHead><TableRow><TableCell>Receipt</TableCell><TableCell>Date</TableCell><TableCell>Description</TableCell><TableCell>Method</TableCell><TableCell align="right">Amount</TableCell><TableCell>Status</TableCell>{isAdmin && <TableCell />}</TableRow></TableHead>
+                    <TableBody>{d.data.payments.map((p) => (
+                      <TableRow key={p._id}>
+                        <TableCell>{p.receiptNo}</TableCell><TableCell>{fdate(p.paymentDate || p.createdAt)}</TableCell><TableCell>{p.description}</TableCell><TableCell>{p.paymentMethod}{p.referenceNumber ? ` · ${p.referenceNumber}` : ''}</TableCell><TableCell align="right">{peso(p.amount)}</TableCell><TableCell><StatusChip label={p.status} /></TableCell>
+                        {isAdmin && <TableCell>{p.status === 'Paid' && !p.posTransaction && <Button size="small" onClick={() => setPayEdit({ _id: p._id, receiptNo: p.receiptNo, online: !!p.online?.checkoutId, amount: String(p.amount), paymentDate: dayjs(p.paymentDate || p.createdAt).format('YYYY-MM-DD'), paymentMethod: ['Cash', 'GCash', 'Card', 'Other'].includes(p.paymentMethod) ? p.paymentMethod : 'Cash', referenceNumber: p.referenceNumber || '' })}>Edit</Button>}</TableCell>}
+                      </TableRow>
+                    ))}</TableBody></Table>
                   {!d.data.payments.length && <Empty>No payments.</Empty>}
                 </Box>
               )}
@@ -295,6 +376,59 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
           }}
         />
       )}
+      <Dialog open={!!msEdit} onClose={keepOpenOnTapOutside(() => setMsEdit(null))} maxWidth="xs" fullWidth PaperProps={{ component: 'form', onSubmit: async (e) => { e.preventDefault(); const r = await run(() => api.patch(`/members/${id}/memberships/${msEdit._id}`, { startDate: msEdit.startDate, endDate: msEdit.endDate, price: msEdit.price }), 'Membership updated'); if (r) setMsEdit(null); } }}>
+        <DialogTitle>Edit {msEdit?.planName}</DialogTitle>
+        <DialogContent>
+          {msEdit && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <TextField label="Start date" type="date" value={msEdit.startDate} onChange={(e) => setMsEdit({ ...msEdit, startDate: e.target.value })} InputLabelProps={{ shrink: true }} required />
+              <TextField label="End date" type="date" value={msEdit.endDate} onChange={(e) => setMsEdit({ ...msEdit, endDate: e.target.value })} InputLabelProps={{ shrink: true }} inputProps={{ min: msEdit.startDate || undefined }} required />
+              <TextField label="Price (₱)" type="number" value={msEdit.price} onChange={(e) => setMsEdit({ ...msEdit, price: e.target.value })} inputProps={{ min: 0, step: '0.01' }} helperText="This changes the membership record only. Edit the payment in the Payments tab." />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}><Button variant="outlined" onClick={() => setMsEdit(null)}>Cancel</Button><Button type="submit" variant="contained" disabled={busy}>Save</Button></DialogActions>
+      </Dialog>
+      <Dialog open={!!payEdit} onClose={keepOpenOnTapOutside(() => setPayEdit(null))} maxWidth="xs" fullWidth PaperProps={{ component: 'form', onSubmit: async (e) => { e.preventDefault(); const r = await run(() => api.patch(`/payments/${payEdit._id}`, { amount: payEdit.online ? undefined : payEdit.amount, paymentDate: payEdit.paymentDate, paymentMethod: payEdit.online ? undefined : payEdit.paymentMethod, referenceNumber: payEdit.referenceNumber }), 'Payment updated'); if (r) setPayEdit(null); } }}>
+        <DialogTitle>Edit payment {payEdit?.receiptNo}</DialogTitle>
+        <DialogContent>
+          {payEdit && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {payEdit.online && <Alert severity="info">This was paid online through PayMongo, so only the date and reference can be changed.</Alert>}
+              <TextField label="Amount (₱)" type="number" value={payEdit.amount} onChange={(e) => setPayEdit({ ...payEdit, amount: e.target.value })} inputProps={{ min: 0, step: '0.01' }} disabled={payEdit.online} required />
+              <TextField label="Paid on" type="date" value={payEdit.paymentDate} onChange={(e) => setPayEdit({ ...payEdit, paymentDate: e.target.value })} InputLabelProps={{ shrink: true }} inputProps={{ max: dayjs().format('YYYY-MM-DD') }} required />
+              <TextField select label="Paid with" value={payEdit.paymentMethod} onChange={(e) => setPayEdit({ ...payEdit, paymentMethod: e.target.value })} disabled={payEdit.online}>{['Cash', 'GCash', 'Card', 'Other'].map((x) => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
+              <TextField label="Reference number" value={payEdit.referenceNumber} onChange={(e) => setPayEdit({ ...payEdit, referenceNumber: e.target.value })} />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}><Button variant="outlined" onClick={() => setPayEdit(null)}>Cancel</Button><Button type="submit" variant="contained" disabled={busy}>Save</Button></DialogActions>
+      </Dialog>
+      <Dialog open={!!prev} onClose={keepOpenOnTapOutside(() => setPrev(null))} maxWidth="sm" fullWidth PaperProps={{ component: 'form', onSubmit: async (e) => { e.preventDefault(); const r = await run(() => api.post(`/members/${id}/memberships/existing`, { ...prev, amountPaid: prev.recordPayment ? prev.amountPaid : undefined, paymentDate: prev.recordPayment ? prev.paymentDate : undefined }), 'Membership added from records'); if (r) setPrev(null); } }}>
+        <DialogTitle>Add membership from previous records</DialogTitle>
+        <DialogContent>
+          {prev && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Grid cols={{ xs: 1, sm: 3 }}>
+                <TextField select label="Plan" value={prev.planId} onChange={(e) => { const p = active.find((x) => String(x._id) === String(e.target.value)); setPrev({ ...prev, planId: e.target.value, amountPaid: p ? String(p.price) : prev.amountPaid, endDate: p && prev.startDate ? plusDays(prev.startDate, p.duration - 1) : prev.endDate }); }} required>
+                  {active.map((p) => <MenuItem key={p._id} value={p._id}>{p.planName} · {p.duration}d · {peso0(p.price)}</MenuItem>)}
+                </TextField>
+                <TextField label="Started on" type="date" value={prev.startDate} onChange={(e) => { const p = active.find((x) => String(x._id) === String(prev.planId)); setPrev({ ...prev, startDate: e.target.value, endDate: p && e.target.value ? plusDays(e.target.value, p.duration - 1) : prev.endDate }); }} InputLabelProps={{ shrink: true }} required />
+                <TextField label="Ends on" type="date" value={prev.endDate} onChange={(e) => setPrev({ ...prev, endDate: e.target.value })} InputLabelProps={{ shrink: true }} inputProps={{ min: prev.startDate || undefined }} required />
+              </Grid>
+              <FormControlLabel control={<Checkbox checked={prev.recordPayment} onChange={(e) => setPrev({ ...prev, recordPayment: e.target.checked })} />} label="Record the payment they made (shows in sales reports on the payment date)" />
+              {prev.recordPayment && (
+                <Grid cols={{ xs: 1, sm: 3 }}>
+                  <TextField label="Amount paid (₱)" type="number" value={prev.amountPaid} onChange={(e) => setPrev({ ...prev, amountPaid: e.target.value })} inputProps={{ min: 0, step: '0.01' }} />
+                  <TextField label="Paid on" type="date" value={prev.paymentDate} onChange={(e) => setPrev({ ...prev, paymentDate: e.target.value })} InputLabelProps={{ shrink: true }} inputProps={{ max: dayjs().format('YYYY-MM-DD') }} />
+                  <TextField select label="Paid with" value={prev.method} onChange={(e) => setPrev({ ...prev, method: e.target.value })}>{['Cash', 'GCash', 'Card', 'Other'].map((x) => <MenuItem key={x} value={x}>{x}</MenuItem>)}</TextField>
+                </Grid>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}><Button variant="outlined" onClick={() => setPrev(null)}>Cancel</Button><Button type="submit" variant="contained" disabled={busy}>Add membership</Button></DialogActions>
+      </Dialog>
       <ConfirmDialog
         open={!!dup}
         title="Membership already recorded today"

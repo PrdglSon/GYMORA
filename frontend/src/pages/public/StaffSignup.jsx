@@ -4,6 +4,7 @@ import { Alert, Button, Link, Stack, TextField, Typography } from '@mui/material
 import AuthLayout from '../auth/AuthLayout';
 import api, { errMsg } from '../../api';
 import useFetch from '../../hooks/useFetch';
+import useDraft from '../../hooks/useDraft';
 import { Grid } from '../../components/ui';
 import { NameField, PhoneField } from '../../components/ContactFields';
 
@@ -13,7 +14,7 @@ export default function StaffSignup() {
   const { slug } = useParams();
   const { data } = useFetch(`/public/gyms/${slug}`);
   const gymName = data?.gym?.name || 'this gym';
-  const [f, setF] = useState(EMPTY);
+  const [f, setF, clearDraft] = useDraft(`gymora:draft:staff-signup:${slug}`, EMPTY);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const [busy, setBusy] = useState(false);
@@ -28,7 +29,7 @@ export default function StaffSignup() {
       const { confirm, ...body } = f;
       const { data: r } = await api.post(`/public/gyms/${slug}/staff-signup`, body);
       setDone(r.message);
-      setF(EMPTY);
+      clearDraft();
     } catch (err) {
       setError(errMsg(err));
     } finally {

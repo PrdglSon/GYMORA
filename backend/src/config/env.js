@@ -54,7 +54,7 @@ export const env = {
     const origin = String(req?.headers?.origin || '').replace(/\/+$/, '');
     return origin && /^https?:\/\//.test(origin) && this.isAllowedOrigin(origin) ? origin : this.clientUrl;
   },
-  autoApproveGyms: String(process.env.AUTO_APPROVE_GYMS ?? 'true') === 'true',
+  autoApproveGyms: String(process.env.AUTO_APPROVE_GYMS ?? 'false') === 'true',
   platformAdminEmail: process.env.PLATFORM_ADMIN_EMAIL,
   platformAdminPassword: process.env.PLATFORM_ADMIN_PASSWORD,
   cloudinaryUrl: process.env.CLOUDINARY_URL || '',

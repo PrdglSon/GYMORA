@@ -17,7 +17,7 @@ const r = Router();
 r.use(protect, allow(...STAFF));
 
 const GYM_FIELDS = ['name', 'tagline', 'about', 'email', 'phoneNumber', 'address', 'city', 'country'];
-const SETTING_FIELDS = ['timezone', 'currency', 'openTime', 'closeTime', 'walkInFee', 'graceDays', 'inactiveDays', 'nearExpiryDays', 'allowOnlineSignup', 'emailNotifications', 'discounts', 'programCategories', 'specializations'];
+const SETTING_FIELDS = ['timezone', 'currency', 'openTime', 'closeTime', 'walkInFee', 'walkInStudentFee', 'graceDays', 'inactiveDays', 'nearExpiryDays', 'allowOnlineSignup', 'emailNotifications', 'discounts', 'programCategories', 'specializations'];
 
 r.get('/', ah(async (req, res) => res.json(await Gym.findById(req.gymId))));
 

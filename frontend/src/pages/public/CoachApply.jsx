@@ -4,6 +4,7 @@ import { Alert, Button, Checkbox, FormControlLabel, FormGroup, FormLabel, Link, 
 import AuthLayout from '../auth/AuthLayout';
 import api, { errMsg } from '../../api';
 import useFetch from '../../hooks/useFetch';
+import useDraft from '../../hooks/useDraft';
 import { Grid } from '../../components/ui';
 import { NameField, PhoneField } from '../../components/ContactFields';
 
@@ -15,7 +16,7 @@ export default function CoachApply() {
   const { data } = useFetch(`/public/gyms/${slug}`);
   const gymName = data?.gym?.name || 'this gym';
   const specs = data?.gym?.settings?.specializations?.length ? data.gym.settings.specializations : FALLBACK_SPECS;
-  const [f, setF] = useState(EMPTY);
+  const [f, setF, clearDraft] = useDraft(`gymora:draft:coach-signup:${slug}`, EMPTY);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const [busy, setBusy] = useState(false);
@@ -32,7 +33,7 @@ export default function CoachApply() {
       const { confirm, ...body } = f;
       const { data: r } = await api.post(`/public/gyms/${slug}/coach-signup`, { ...body, experience: f.experience === '' ? 0 : Number(f.experience) });
       setDone(r.message);
-      setF(EMPTY);
+      clearDraft();
     } catch (err) {
       setError(errMsg(err));
     } finally {

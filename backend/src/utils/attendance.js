@@ -64,7 +64,15 @@ export async function toggleMemberVisit({ gym, settings, member, method, recorde
   return { ok: true, action: 'in', attendance: att, title: `Welcome, ${member.firstName}!`, message: `Tapped in at ${now.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}.${note}` };
 }
 
-export async function recordWalkIn({ gym, settings, fullName, phoneNumber, email, method = 'Cash', paid = true, via = 'Front Desk', recordedBy, referenceNumber }) {
+export const WALKIN_TYPES = ['Regular', 'Student'];
+
+export function walkInPrice(settings, guestType) {
+  if (guestType === 'Student') return settings.walkInStudentFee ?? settings.walkInFee;
+  return settings.walkInFee;
+}
+
+export async function recordWalkIn({ gym, settings, fullName, phoneNumber, email, guestType = 'Regular', method = 'Cash', paid = true, via = 'Front Desk', recordedBy, referenceNumber }) {
+  if (!WALKIN_TYPES.includes(guestType)) guestType = 'Regular';
   phoneNumber = normalizePhone(phoneNumber);
   let guest = phoneNumber ? await WalkInGuest.findOne({ gym, phoneNumber }) : null;
   if (!guest) guest = await WalkInGuest.create({ gym, fullName, phoneNumber, email });
@@ -78,8 +86,8 @@ export async function recordWalkIn({ gym, settings, fullName, phoneNumber, email
     paymentType: 'Walk-in',
     walkInGuest: guest._id,
     payerName: guest.fullName,
-    description: 'Walk-in day pass',
-    amount: settings.walkInFee,
+    description: `Walk-in day pass (${guestType})`,
+    amount: walkInPrice(settings, guestType),
     paymentMethod: paid ? method : 'Unpaid',
     referenceNumber,
     status: paid ? 'Paid' : 'Unpaid',
@@ -87,7 +95,7 @@ export async function recordWalkIn({ gym, settings, fullName, phoneNumber, email
     recordedBy,
   });
   const now = new Date();
-  const att = await Attendance.create({ gym, attendeeType: 'Walk-in', walkInGuest: guest._id, name: guest.fullName, date: startOfDay(now), timeIn: now, method: via, status: 'Checked In', payment: payment._id, recordedBy });
+  const att = await Attendance.create({ gym, attendeeType: 'Walk-in', guestType, walkInGuest: guest._id, name: guest.fullName, date: startOfDay(now), timeIn: now, method: via, status: 'Checked In', payment: payment._id, recordedBy });
   broadcast(gym, att);
   return { guest, payment, attendance: att };
 }

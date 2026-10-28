@@ -205,12 +205,14 @@ export default function POS() {
   const isOnline = method !== 'Cash';
   const discounts = gym?.settings?.discounts || [];
   const walkInFee = gym?.settings?.walkInFee || 0;
+  const walkInStudentFee = gym?.settings?.walkInStudentFee ?? walkInFee;
 
   const items = products.data || [];
   const cats = ['All Items', ...new Set(items.map((p) => p.category))];
   const shown = items.filter((p) => (cat === 'All Items' || p.category === cat) && (!q || `${p.productName} ${p.brand || ''} ${p.sku}`.toLowerCase().includes(q.toLowerCase())));
   const services = [
-    { key: 'walkin', itemType: 'Walk-in Pass', name: 'Walk-in Day Pass', price: walkInFee, sub: 'Service' },
+    { key: 'walkin', itemType: 'Walk-in Pass', guestType: 'Regular', name: 'Walk-in Day Pass · Regular', price: walkInFee, sub: 'Service' },
+    { key: 'walkin-student', itemType: 'Walk-in Pass', guestType: 'Student', name: 'Walk-in Day Pass · Student', price: walkInStudentFee, sub: 'Service' },
     ...(plans.data || []).filter((p) => p.status === 'Active').map((p) => ({ key: p._id, itemType: 'Membership', planId: p._id, name: `${p.planName} membership`, price: p.price, sub: `${p.duration} days${p.isStudentPlan ? ' · verified students' : ''}`, isStudentPlan: p.isStudentPlan })),
   ];
 
@@ -273,7 +275,7 @@ export default function POS() {
     try {
       const d = disc >= 0 ? discounts[disc] : null;
       const { data } = await api.post('/pos/transactions', {
-        items: cart.map((i) => ({ itemType: i.itemType, productId: i.productId, planId: i.planId, quantity: i.qty })),
+        items: cart.map((i) => ({ itemType: i.itemType, productId: i.productId, planId: i.planId, guestType: i.guestType, quantity: i.qty })),
         memberId: member?._id,
         customerName: member ? undefined : customerName || undefined,
         discountRate: rate,

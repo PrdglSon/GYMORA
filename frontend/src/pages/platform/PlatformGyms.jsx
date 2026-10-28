@@ -81,6 +81,30 @@ export default function PlatformGyms() {
         <StatCard label="Waiting for approval" value={s.data?.pending ?? '—'} sub="Review below" subColor={s.data?.pending ? 'warning.main' : undefined} />
         <StatCard label="User accounts" value={s.data?.accounts ?? '—'} sub="Members, coaches and staff" />
       </Grid>
+      {(g.data || []).some((x) => x.status === 'pending') && (
+        <Section title="New gym registrations waiting for approval">
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>These gyms can't log in or appear on GYMORA until you approve them. The owner gets an email once approved.</Typography>
+          <Stack spacing={1.5}>
+            {(g.data || []).filter((x) => x.status === 'pending').map((x) => (
+              <Box key={x._id} sx={{ p: 1.5, border: 1, borderColor: 'warning.light', bgcolor: '#FFF8E6', borderRadius: 2, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                <Box sx={{ flex: 1, minWidth: 220 }}>
+                  <Typography fontWeight={800}>{x.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {[x.city, x.address].filter(Boolean).join(' · ') || 'No address given'}{x.estimatedMembers ? ` · about ${x.estimatedMembers} members` : ''}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Owner: {x.owner ? `${x.owner.firstName} ${x.owner.lastName}` : '—'}{x.owner?.email ? ` · ${x.owner.email}` : ''}{x.owner?.phoneNumber ? ` · ${x.owner.phoneNumber}` : ''} · registered {fdate(x.createdAt)}
+                  </Typography>
+                </Box>
+                <Stack direction="row" spacing={1}>
+                  <Button variant="contained" onClick={() => apply(x, 'active')} disabled={busy}>Approve</Button>
+                  <Button color="error" variant="outlined" onClick={() => setConfirm(x)} disabled={busy}>Reject</Button>
+                </Stack>
+              </Box>
+            ))}
+          </Stack>
+        </Section>
+      )}
       <Section
         title="All gyms"
         action={(
@@ -152,9 +176,9 @@ export default function PlatformGyms() {
       </Dialog>
       <ConfirmDialog
         open={!!confirm}
-        title={`Suspend ${confirm?.name || 'gym'}?`}
-        message="Its public page, kiosk and online sign-up will stop working until you reactivate it."
-        confirmLabel="Suspend"
+        title={confirm?.status === 'pending' ? `Reject ${confirm?.name || 'gym'}?` : `Suspend ${confirm?.name || 'gym'}?`}
+        message={confirm?.status === 'pending' ? 'The gym stays blocked and moves to Suspended. You can still approve it later or delete it.' : 'Its public page, kiosk and online sign-up will stop working until you reactivate it.'}
+        confirmLabel={confirm?.status === 'pending' ? 'Reject' : 'Suspend'}
         danger
         busy={busy}
         onClose={() => setConfirm(null)}

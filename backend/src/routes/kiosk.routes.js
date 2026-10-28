@@ -16,7 +16,7 @@ const kioskGym = ah(async (req, res, next) => {
   next();
 });
 
-r.get('/:slug/verify', kioskGym, (req, res) => res.json({ name: req.kgym.name, slug: req.kgym.slug, logoUrl: req.kgym.logoUrl, walkInFee: req.kgym.settings.walkInFee }));
+r.get('/:slug/verify', kioskGym, (req, res) => res.json({ name: req.kgym.name, slug: req.kgym.slug, logoUrl: req.kgym.logoUrl, walkInFee: req.kgym.settings.walkInFee, walkInStudentFee: req.kgym.settings.walkInStudentFee ?? req.kgym.settings.walkInFee }));
 
 r.post('/:slug/scan', kioskGym, ah(async (req, res) => {
   requireFields(req.body, ['code']);
@@ -34,7 +34,7 @@ r.post('/:slug/scan', kioskGym, ah(async (req, res) => {
 
 r.post('/:slug/walkin', kioskGym, ah(async (req, res) => {
   requireFields(req.body, ['fullName', 'phoneNumber']);
-  const { payment } = await recordWalkIn({ gym: req.kgym._id, settings: req.kgym.settings, fullName: req.body.fullName, phoneNumber: req.body.phoneNumber, paid: false, via: 'QR Kiosk' });
+  const { payment } = await recordWalkIn({ gym: req.kgym._id, settings: req.kgym.settings, fullName: req.body.fullName, phoneNumber: req.body.phoneNumber, guestType: req.body.guestType, paid: false, via: 'QR Kiosk' });
   await notifyStaff(req.kgym._id, { type: 'Walk-in', title: 'Walk-in at kiosk', message: `${req.body.fullName}: collect ₱${payment.amount} (${payment.receiptNo})`, link: '/admin/billing' });
   res.status(201).json({ ok: true, title: `Welcome, ${String(req.body.fullName).split(' ')[0]}!`, message: `Please pay ₱${payment.amount} at the front desk.` });
 }));

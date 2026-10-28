@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { Payment, PosTransaction, PosItem, Attendance, Member, FitnessProgram, ProgramSchedule, Enrollment, Product, IncidentReport, Inquiry, Equipment, Coach, MembershipPlan } from '../models/index.js';
+import { Payment, PosTransaction, PosItem, Attendance, Member, FitnessProgram, ProgramSchedule, Enrollment, Product, IncidentReport, Inquiry, Equipment, Coach, MembershipPlan, Expense } from '../models/index.js';
+import { monthRange } from '../utils/month.js';
 import { protect, allow, STAFF } from '../middleware/auth.js';
 import { ah } from '../utils/http.js';
 import { startOfDay, addDays, dayKey, atTime, startOfWeek, hhmmToMinutes } from '../utils/dates.js';
@@ -79,16 +80,29 @@ r.get('/dashboard', allow(...STAFF), ah(async (req, res) => {
   });
 }));
 
+function seriesForMonth(docs, field, range, valueFn = () => 1) {
+  const keys = Array.from({ length: range.daysInMonth }, (_, i) => dayKey(addDays(range.start, i)));
+  const map = Object.fromEntries(keys.map((k) => [k, 0]));
+  docs.forEach((d) => {
+    const k = dayKey(d[field]);
+    if (k in map) map[k] += valueFn(d);
+  });
+  return keys.map((k) => ({ date: k, value: Math.round(map[k] * 100) / 100 }));
+}
+
+const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
 r.get('/analytics', allow('admin'), ah(async (req, res) => {
   const g = req.gymId;
-  const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 7), 365);
-  const since = addDays(startOfDay(), -(days - 1));
+  const range = monthRange(req.query.month);
+  const inMonth = { $gte: range.start, $lt: range.end };
+  const prev = monthRange(dayKey(addDays(range.start, -1)).slice(0, 7));
   const weekStart = startOfWeek();
-  const [pays, pos, att, newMembers, plans, planCounts, coaches, programs, enrolled, weekSessions, totalMembers, current] = await Promise.all([
-    Payment.find({ gym: g, status: 'Paid', paymentDate: { $gte: since } }).select('amount paymentDate paymentType').lean(),
-    PosTransaction.find({ gym: g, status: 'Completed', transactionDate: { $gte: since } }).select('_id productAmount transactionDate').lean(),
-    Attendance.find({ gym: g, timeIn: { $gte: since } }).select('timeIn attendeeType').lean(),
-    Member.find({ gym: g, registrationDate: { $gte: since } }).select('registrationDate').lean(),
+  const [pays, pos, att, newMembers, plans, planCounts, coaches, programs, enrolled, weekSessions, totalMembers, current, expenses, prevPays, prevPos, prevExpenses] = await Promise.all([
+    Payment.find({ gym: g, status: 'Paid', paymentDate: inMonth }).select('amount paymentDate paymentType paymentMethod').lean(),
+    PosTransaction.find({ gym: g, status: 'Completed', transactionDate: inMonth }).select('_id productAmount transactionDate paymentMethod').lean(),
+    Attendance.find({ gym: g, timeIn: inMonth }).select('timeIn attendeeType guestType').lean(),
+    Member.find({ gym: g, registrationDate: inMonth }).select('registrationDate').lean(),
     MembershipPlan.find({ gym: g }).lean(),
     Member.aggregate([{ $match: { gym: g, 'current.endDate': { $gte: startOfDay() } } }, { $group: { _id: '$current.plan', n: { $sum: 1 } } }]),
     Coach.find({ gym: g, status: 'active' }).lean(),
@@ -97,6 +111,10 @@ r.get('/analytics', allow('admin'), ah(async (req, res) => {
     ProgramSchedule.find({ gym: g, status: 'Scheduled', scheduleDate: { $gte: weekStart, $lt: addDays(weekStart, 7) } }).lean(),
     Member.countDocuments({ gym: g }),
     Member.countDocuments({ gym: g, 'current.endDate': { $gte: startOfDay() } }),
+    Expense.find({ gym: g, date: inMonth }).lean(),
+    Payment.find({ gym: g, status: 'Paid', paymentDate: { $gte: prev.start, $lt: prev.end } }).select('amount').lean(),
+    PosTransaction.find({ gym: g, status: 'Completed', transactionDate: { $gte: prev.start, $lt: prev.end } }).select('productAmount').lean(),
+    Expense.find({ gym: g, date: { $gte: prev.start, $lt: prev.end } }).select('amount').lean(),
   ]);
   const items = await PosItem.find({ transaction: { $in: pos.map((p) => p._id) }, itemType: 'Product' }).lean();
   const productTotals = {};
@@ -109,24 +127,56 @@ r.get('/analytics', allow('admin'), ah(async (req, res) => {
   att.forEach((a) => hourly[new Date(a.timeIn).getHours()]++);
   const planName = Object.fromEntries(plans.map((p) => [String(p._id), p.planName]));
   const byType = (t) => pays.filter((p) => p.paymentType === t);
-  const posIncome = pos.map((p) => ({ amount: p.productAmount, at: p.transactionDate }));
-  const totalOf = (arr) => arr.reduce((a, p) => a + p.amount, 0);
+  const posIncome = pos.map((p) => ({ amount: p.productAmount || 0, at: p.transactionDate, method: p.paymentMethod }));
+  const totalOf = (arr) => r2(arr.reduce((a, p) => a + (p.amount || 0), 0));
+  const sales = r2(totalOf(pays) + totalOf(posIncome));
+  const expenseTotal = totalOf(expenses);
+  const prevSales = r2(totalOf(prevPays) + prevPos.reduce((a, p) => a + (p.productAmount || 0), 0));
+  const prevExpenseTotal = totalOf(prevExpenses);
+  const byCategory = {};
+  expenses.forEach((e) => (byCategory[e.category] = r2((byCategory[e.category] || 0) + e.amount)));
+  const methods = {};
+  const addMethod = (m, amt) => {
+    const k = m && m !== 'Unpaid' ? m : 'Other';
+    methods[k] = methods[k] || { method: k, count: 0, amount: 0 };
+    methods[k].count += 1;
+    methods[k].amount = r2(methods[k].amount + (amt || 0));
+  };
+  pays.forEach((p) => addMethod(p.paymentMethod, p.amount));
+  posIncome.filter((p) => p.amount > 0).forEach((p) => addMethod(p.method, p.amount));
+  const dayCount = Math.max(range.elapsed, 1);
   res.json({
-    days,
+    month: range.key,
+    label: range.label,
+    days: range.daysInMonth,
+    daysCounted: range.elapsed,
+    isCurrentMonth: range.isCurrent,
+    profit: {
+      sales,
+      expenses: expenseTotal,
+      net: r2(sales - expenseTotal),
+      previous: { month: prev.key, label: prev.label, sales: prevSales, expenses: prevExpenseTotal, net: r2(prevSales - prevExpenseTotal) },
+      expensesByCategory: Object.entries(byCategory).map(([category, amount]) => ({ category, amount })).sort((a, b) => b.amount - a.amount),
+    },
     totals: {
-      revenue: totalOf(pays) + totalOf(posIncome),
+      revenue: sales,
       byType: { membership: totalOf(byType('Membership')), walkin: totalOf(byType('Walk-in')), retail: totalOf(posIncome), other: totalOf(byType('Other')) },
-      checkins: att.length, walkins: att.filter((a) => a.attendeeType === 'Walk-in').length, newMembers: newMembers.length,
+      checkins: att.length,
+      walkins: att.filter((a) => a.attendeeType === 'Walk-in').length,
+      studentWalkins: att.filter((a) => a.attendeeType === 'Walk-in' && a.guestType === 'Student').length,
+      newMembers: newMembers.length,
       retention: totalMembers ? Math.round((current / totalMembers) * 100) : 0, currentMembers: current, totalMembers,
     },
     revenue: {
-      membership: seriesByDay(byType('Membership'), 'paymentDate', days, (p) => p.amount),
-      walkin: seriesByDay(byType('Walk-in'), 'paymentDate', days, (p) => p.amount),
-      retail: seriesByDay([...posIncome, ...byType('Other').map((p) => ({ amount: p.amount, at: p.paymentDate }))], 'at', days, (p) => p.amount),
+      membership: seriesForMonth(byType('Membership'), 'paymentDate', range, (p) => p.amount),
+      walkin: seriesForMonth(byType('Walk-in'), 'paymentDate', range, (p) => p.amount),
+      retail: seriesForMonth([...posIncome, ...byType('Other').map((p) => ({ amount: p.amount, at: p.paymentDate }))], 'at', range, (p) => p.amount),
+      expenses: seriesForMonth(expenses, 'date', range, (e) => e.amount),
     },
-    checkins: seriesByDay(att, 'timeIn', days),
-    newMembers: seriesByDay(newMembers, 'registrationDate', days),
-    avgByHour: hourly.map((n) => Math.round((n / days) * 10) / 10),
+    methods: Object.values(methods).sort((a, b) => b.amount - a.amount),
+    checkins: seriesForMonth(att, 'timeIn', range),
+    newMembers: seriesForMonth(newMembers, 'registrationDate', range),
+    avgByHour: hourly.map((n) => Math.round((n / dayCount) * 10) / 10),
     planDistribution: planCounts.map((m) => ({ plan: planName[String(m._id)] || 'Other', members: m.n })),
     coachUtilization: coaches.map((c) => {
       const ps = programs.filter((p) => String(p.coach) === String(c._id));

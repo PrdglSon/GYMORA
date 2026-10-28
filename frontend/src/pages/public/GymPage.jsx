@@ -245,7 +245,7 @@ export default function GymPage() {
               {tab === 'Membership' && (
                 <>
                   <Headline line1="More than a gym." accent="A community." rest="" size={{ xs: 28, md: 40 }} />
-                  <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>Choose a plan that fits your lifestyle. Walk-in day pass: {peso0(settings.walkInFee)}.</Typography>
+                  <Typography color="text.secondary" sx={{ mt: 1, mb: 3 }}>Choose a plan that fits your lifestyle. Walk-in day pass: {peso0(settings.walkInFee)} regular, {peso0(settings.walkInStudentFee ?? settings.walkInFee)} for students.</Typography>
                   <Grid cols={{ xs: 1, sm: 2, md: 4 }}>
                     {data.plans.map((p) => (
                       <Card key={p._id} sx={p.highlight ? { borderColor: brand.yellow, boxShadow: `0 0 0 1px ${brand.yellow}` } : undefined}>

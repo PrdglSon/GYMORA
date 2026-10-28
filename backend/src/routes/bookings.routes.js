@@ -1,3 +1,4 @@
+import { monthRange } from '../utils/month.js';
 import { Router } from 'express';
 import { Booking, Coach, Member, ProgramSchedule, OPEN_BOOKING, BOOKING_STATUS, nextCode } from '../models/index.js';
 import { protect, allow, STAFF } from '../middleware/auth.js';
@@ -132,8 +133,8 @@ r.get('/', allow(...STAFF), ah(async (req, res) => {
 }));
 
 r.get('/stats', allow(...STAFF), ah(async (req, res) => {
-  const since = addDays(startOfDay(), -Number(req.query.days || 30));
-  const match = { gym: req.gymId, sessionDate: { $gte: since } };
+  const range = monthRange(req.query.month);
+  const match = { gym: req.gymId, sessionDate: { $gte: range.start, $lt: range.end } };
   const [byStatus, byCoach, upcoming] = await Promise.all([
     Booking.aggregate([{ $match: match }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
     Booking.aggregate([{ $match: match }, { $group: { _id: '$coach', total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } }, approved: { $sum: { $cond: [{ $eq: ['$status', 'Approved'] }, 1, 0] } } } }, { $sort: { total: -1 } }]),

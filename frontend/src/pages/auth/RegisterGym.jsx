@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, Link, MenuItem, Stack, TextField, Typography } from '@mui/material';
 import AuthLayout from './AuthLayout';
+import useDraft from '../../hooks/useDraft';
 import api, { errMsg } from '../../api';
 import { useAuth } from '../../context/AuthContext';
 import { Grid } from '../../components/ui';
@@ -11,7 +12,7 @@ import { NameField, PhoneField } from '../../components/ContactFields';
 export default function RegisterGym() {
   const navigate = useNavigate();
   const { acceptSession } = useAuth();
-  const [f, setF] = useState({ gymName: '', firstName: '', lastName: '', email: '', phoneNumber: '', password: '', city: '', address: '', estimatedMembers: '100–300' });
+  const [f, setF, clearDraft] = useDraft('gymora:draft:register-gym', { gymName: '', firstName: '', lastName: '', email: '', phoneNumber: '', password: '', city: '', address: '', estimatedMembers: '100–300' });
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,6 +44,7 @@ export default function RegisterGym() {
       Object.entries(f).forEach(([k, v]) => fd.append(k, v));
       if (logo) fd.append('logo', logo);
       const { data } = await api.post('/auth/register-gym', fd);
+      clearDraft();
       if (data.pending) setDone(data.message);
       else {
         acceptSession(data);

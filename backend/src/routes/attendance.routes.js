@@ -81,8 +81,8 @@ r.get('/stats', allow(...STAFF), ah(async (req, res) => {
 
 r.post('/walkin', allow(...STAFF), ah(async (req, res) => {
   requireFields(req.body, ['fullName']);
-  const result = await recordWalkIn({ gym: req.gymId, settings: req.gym.settings, fullName: req.body.fullName, phoneNumber: req.body.phoneNumber, email: req.body.email, method: req.body.method || 'Cash', referenceNumber: req.body.referenceNumber, paid: req.body.method !== 'Unpaid', recordedBy: req.account._id });
-  audit(req, 'Attendance', `Walk-in ${req.body.fullName} tapped in (${result.payment.receiptNo})`);
+  const result = await recordWalkIn({ gym: req.gymId, settings: req.gym.settings, fullName: req.body.fullName, phoneNumber: req.body.phoneNumber, email: req.body.email, guestType: req.body.guestType, method: req.body.method || 'Cash', referenceNumber: req.body.referenceNumber, paid: req.body.method !== 'Unpaid', recordedBy: req.account._id });
+  audit(req, 'Attendance', `Walk-in ${req.body.fullName} (${result.attendance.guestType}) tapped in (${result.payment.receiptNo})`);
   res.status(201).json(result);
 }));
 
