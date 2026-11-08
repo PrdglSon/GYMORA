@@ -16,7 +16,7 @@ import { peso, peso0, fdate, hourLabel, pct, isoDay } from '../../utils/format';
 import { brand } from '../../theme';
 
 const COLORS = [brand.yellow, brand.orange, brand.green, brand.blue, brand.purple, '#888'];
-const METHOD_COLORS = { Cash: brand.green, GCash: brand.blue, Card: brand.purple, Other: '#888' };
+const METHOD_COLORS = { Cash: brand.green, GCash: brand.blue, Maya: '#00a86b', Card: brand.purple, GrabPay: '#00b14f', 'QR Ph': brand.orange, 'Bank transfer': '#5c6bc0', Online: brand.yellow, Other: '#888' };
 
 const EXPENSE_CATEGORIES = ['Utilities (electricity, water, internet)', 'Rent', 'Salaries and wages', 'Supplies (water, cleaning, toiletries)', 'Equipment and repairs', 'Products for resale', 'Marketing', 'Other'];
 const PAID_WITH = ['Cash', 'GCash', 'Bank transfer', 'Card', 'Other'];
@@ -24,6 +24,72 @@ const dayNum = (d) => dayjs(d).format('D');
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const signed = (n) => `${n < 0 ? '− ' : ''}${peso(Math.abs(n))}`;
+
+const METHOD_ORDER = ['Cash', 'GCash', 'Maya', 'Card', 'GrabPay', 'QR Ph', 'Bank transfer', 'Online', 'Other'];
+const METHOD_NOTE = { Cash: 'cash in the drawer', GCash: 'in the GCash account', Maya: 'in the Maya account', Card: 'card payments', 'Bank transfer': 'bank account', 'QR Ph': 'QR Ph payments', GrabPay: 'GrabPay', Online: 'online payments', Other: 'other methods' };
+
+function sumBy(items, key) {
+  const out = {};
+  items.forEach((e) => {
+    const k = e[key] || 'Other';
+    out[k] = r2((out[k] || 0) + e.amount);
+  });
+  return out;
+}
+
+function methodRows(sales = {}, expenses = {}) {
+  const keys = [...new Set([...Object.keys(sales), ...Object.keys(expenses)])];
+  const ordered = [...METHOD_ORDER.filter((k) => keys.includes(k)), ...keys.filter((k) => !METHOD_ORDER.includes(k))];
+  const list = ordered.length ? ordered : ['Cash', 'GCash'];
+  return list.map((m) => ({ method: m, sales: r2(sales[m] || 0), spent: r2(expenses[m] || 0), net: r2((sales[m] || 0) - (expenses[m] || 0)) }));
+}
+
+function MethodTable({ sales, expenses, title = 'By payment method' }) {
+  const rows = methodRows(sales, expenses);
+  const tot = rows.reduce((a, r) => ({ sales: a.sales + r.sales, spent: a.spent + r.spent }), { sales: 0, spent: 0 });
+  const net = r2(tot.sales - tot.spent);
+  return (
+    <Box sx={{ mt: 3 }}>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>{title}</Typography>
+      <Box sx={{ overflowX: 'auto', border: `1px solid ${brand.line}`, borderRadius: 2 }}>
+        <Table size="small" sx={{ '& td, & th': { whiteSpace: 'nowrap' } }}>
+          <TableHead>
+            <TableRow sx={{ bgcolor: brand.fill }}>
+              <TableCell>Payment method</TableCell>
+              <TableCell align="right">Sales</TableCell>
+              <TableCell align="right">− Expenses</TableCell>
+              <TableCell align="right">= Net</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.method}>
+                <TableCell>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: METHOD_COLORS[r.method] || '#9e9e9e', flex: 'none' }} />
+                    <Box>
+                      <Typography variant="body2" fontWeight={700}>{r.method}</Typography>
+                      <Typography variant="caption" color="text.secondary">{METHOD_NOTE[r.method] || ''}</Typography>
+                    </Box>
+                  </Stack>
+                </TableCell>
+                <TableCell align="right">{peso(r.sales)}</TableCell>
+                <TableCell align="right">{r.spent ? peso(r.spent) : '—'}</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 800, color: r.net >= 0 ? brand.ink : brand.red }}>{signed(r.net)}</TableCell>
+              </TableRow>
+            ))}
+            <TableRow sx={{ '& td': { fontWeight: 800, borderTop: `2px solid ${brand.ink}`, borderBottom: 0 } }}>
+              <TableCell>All methods</TableCell>
+              <TableCell align="right">{peso(tot.sales)}</TableCell>
+              <TableCell align="right">{peso(tot.spent)}</TableCell>
+              <TableCell align="right" sx={{ color: net >= 0 ? brand.green : brand.red }}>{signed(net)}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </Box>
+    </Box>
+  );
+}
 
 function dayFigures(x, date, expenses) {
   const i = x.revenue.membership.findIndex((d) => d.date === date);
@@ -74,6 +140,7 @@ function DailySummary({ x, day, setDay, expenses, onAdd, onEdit, onDelete, loadi
         <Figure label="Total expenses" value={d.spent} tone="out" op="−" />
         <Figure label={d.net >= 0 ? 'Net income' : 'Net loss'} value={d.net} tone="net" op="=" big />
       </Stack>
+      <MethodTable title="Cash, GCash and other methods this day" sales={x.salesByMethod?.[day] || {}} expenses={sumBy(d.items, 'paidWith')} />
       <Grid cols={{ xs: 1, md: 2 }} gap={3} sx={{ mt: 3 }}>
         <Box>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>{day === today ? 'Sales today' : 'Sales this day'}</Typography>
@@ -141,6 +208,7 @@ function MonthOverview({ x }) {
         {tile('Total expenses', peso(p.expenses), brand.red, hasPrev ? `${prev.label}: ${peso(prev.expenses)}` : null)}
         {tile(p.net >= 0 ? 'Net income' : 'Net loss', signed(p.net), p.net >= 0 ? brand.ink : brand.red, hasPrev ? `${change >= 0 ? '▲' : '▼'} ${peso(Math.abs(change))} vs ${prev.label}` : null)}
       </Grid>
+      <MethodTable title={`Cash, GCash and other methods in ${x.label}`} sales={x.monthByMethod?.sales || {}} expenses={x.monthByMethod?.expenses || {}} />
       {x.isCurrentMonth && <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>Month to date, up to today.</Typography>}
     </Section>
   );
@@ -153,7 +221,16 @@ function DayByDay({ x, expenses, day, setDay, month }) {
   const shown = showAll ? days : days.filter((d) => d.sales || d.spent || d.date === today);
   const totals = days.reduce((a, d) => ({ sales: a.sales + d.sales, spent: a.spent + d.spent }), { sales: 0, spent: 0 });
   const net = r2(totals.sales - totals.spent);
-  const csv = () => downloadCsv(`daily-sales-expenses-${month}`, ['Date', 'Sales', 'Expenses', 'Net', 'Expense details'], days.slice().reverse().map((d) => [d.date, d.sales, d.spent, d.net, d.items.map((e) => `${e.description} (${e.amount})`).join('; ')]));
+  const csv = () => {
+    const methods = [...new Set(['Cash', 'GCash', ...days.flatMap((d) => [...Object.keys(x.salesByMethod?.[d.date] || {}), ...d.items.map((e) => e.paidWith || 'Other')])])];
+    const head = ['Date', 'Total sales', 'Total expenses', 'Net', ...methods.flatMap((m) => [`${m} sales`, `${m} expenses`, `${m} net`]), 'Expense details'];
+    const rows = days.slice().reverse().map((d) => {
+      const s = x.salesByMethod?.[d.date] || {};
+      const e = sumBy(d.items, 'paidWith');
+      return [d.date, d.sales, d.spent, d.net, ...methods.flatMap((m) => [s[m] || 0, e[m] || 0, r2((s[m] || 0) - (e[m] || 0))]), d.items.map((it) => `${it.description} (${it.paidWith}, ${it.amount})`).join('; ')];
+    });
+    downloadCsv(`daily-sales-expenses-${month}`, head, rows);
+  };
   return (
     <Section title={`Every day in ${x.label}`} action={days.length > 0 && <CsvButton onClick={csv} />}>
       <Box sx={{ overflowX: 'auto' }}>

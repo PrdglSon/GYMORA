@@ -92,6 +92,14 @@ function seriesForMonth(docs, field, range, valueFn = () => 1) {
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
+const CHANNEL_LABEL = { gcash: 'GCash', paymaya: 'Maya', maya: 'Maya', card: 'Card', grab_pay: 'GrabPay', qrph: 'QR Ph', dob: 'Online banking', billease: 'BillEase' };
+
+export function methodKey(method, online) {
+  if (method === 'Online') return CHANNEL_LABEL[String(online?.channel || '').toLowerCase()] || 'Online';
+  if (!method || method === 'Unpaid') return 'Other';
+  return method;
+}
+
 r.get('/analytics', allow('admin'), ah(async (req, res) => {
   const g = req.gymId;
   const range = monthRange(req.query.month);
@@ -99,8 +107,8 @@ r.get('/analytics', allow('admin'), ah(async (req, res) => {
   const prev = monthRange(dayKey(addDays(range.start, -1)).slice(0, 7));
   const weekStart = startOfWeek();
   const [pays, pos, att, newMembers, plans, planCounts, coaches, programs, enrolled, weekSessions, totalMembers, current, expenses, prevPays, prevPos, prevExpenses] = await Promise.all([
-    Payment.find({ gym: g, status: 'Paid', paymentDate: inMonth }).select('amount paymentDate paymentType paymentMethod').lean(),
-    PosTransaction.find({ gym: g, status: 'Completed', transactionDate: inMonth }).select('_id productAmount transactionDate paymentMethod').lean(),
+    Payment.find({ gym: g, status: 'Paid', paymentDate: inMonth }).select('amount paymentDate paymentType paymentMethod online.channel').lean(),
+    PosTransaction.find({ gym: g, status: 'Completed', transactionDate: inMonth }).select('_id productAmount transactionDate paymentMethod online.channel').lean(),
     Attendance.find({ gym: g, timeIn: inMonth }).select('timeIn attendeeType guestType').lean(),
     Member.find({ gym: g, registrationDate: inMonth }).select('registrationDate').lean(),
     MembershipPlan.find({ gym: g }).lean(),
@@ -127,7 +135,7 @@ r.get('/analytics', allow('admin'), ah(async (req, res) => {
   att.forEach((a) => hourly[new Date(a.timeIn).getHours()]++);
   const planName = Object.fromEntries(plans.map((p) => [String(p._id), p.planName]));
   const byType = (t) => pays.filter((p) => p.paymentType === t);
-  const posIncome = pos.map((p) => ({ amount: p.productAmount || 0, at: p.transactionDate, method: p.paymentMethod }));
+  const posIncome = pos.map((p) => ({ amount: p.productAmount || 0, at: p.transactionDate, method: methodKey(p.paymentMethod, p.online) }));
   const totalOf = (arr) => r2(arr.reduce((a, p) => a + (p.amount || 0), 0));
   const sales = r2(totalOf(pays) + totalOf(posIncome));
   const expenseTotal = totalOf(expenses);
@@ -142,8 +150,19 @@ r.get('/analytics', allow('admin'), ah(async (req, res) => {
     methods[k].count += 1;
     methods[k].amount = r2(methods[k].amount + (amt || 0));
   };
-  pays.forEach((p) => addMethod(p.paymentMethod, p.amount));
+  pays.forEach((p) => addMethod(methodKey(p.paymentMethod, p.online), p.amount));
   posIncome.filter((p) => p.amount > 0).forEach((p) => addMethod(p.method, p.amount));
+  const salesByMethod = {};
+  const addDaily = (at, m, amt) => {
+    if (!amt) return;
+    const k = dayKey(at);
+    salesByMethod[k] = salesByMethod[k] || {};
+    salesByMethod[k][m] = r2((salesByMethod[k][m] || 0) + amt);
+  };
+  pays.forEach((p) => addDaily(p.paymentDate, methodKey(p.paymentMethod, p.online), p.amount));
+  posIncome.forEach((p) => addDaily(p.at, p.method, p.amount));
+  const expensesByMethod = {};
+  expenses.forEach((e) => (expensesByMethod[e.paidWith || 'Other'] = r2((expensesByMethod[e.paidWith || 'Other'] || 0) + e.amount)));
   const dayCount = Math.max(range.elapsed, 1);
   res.json({
     month: range.key,
@@ -174,6 +193,8 @@ r.get('/analytics', allow('admin'), ah(async (req, res) => {
       expenses: seriesForMonth(expenses, 'date', range, (e) => e.amount),
     },
     methods: Object.values(methods).sort((a, b) => b.amount - a.amount),
+    salesByMethod,
+    monthByMethod: { sales: Object.fromEntries(Object.values(methods).map((m) => [m.method, m.amount])), expenses: expensesByMethod },
     checkins: seriesForMonth(att, 'timeIn', range),
     newMembers: seriesForMonth(newMembers, 'registrationDate', range),
     avgByHour: hourly.map((n) => Math.round((n / dayCount) * 10) / 10),
