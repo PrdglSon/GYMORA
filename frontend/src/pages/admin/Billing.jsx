@@ -14,6 +14,8 @@ import { DataState, Grid, Section, StatCard, StatusChip, Empty } from '../../com
 import { fdate, fdt, peso, peso0 } from '../../utils/format';
 import { brand } from '../../theme';
 import { NameField } from '../../components/ContactFields';
+import GcashTally from '../../components/GcashTally';
+import { isoDay } from '../../utils/format';
 
 const CHANNEL = { card: 'Card', gcash: 'GCash', paymaya: 'Maya', grab_pay: 'GrabPay', qrph: 'QR Ph' };
 const TABS = [['all', 'All'], ['Membership', 'Membership'], ['Walk-in', 'Walk-in'], ['Other', 'Other'], ['Unpaid', 'Unpaid'], ['Void', 'Void']];
@@ -145,6 +147,9 @@ export default function Billing() {
         <StatCard label="Retail & other" value={s ? peso0(s.retail30 + s.other30) : '—'} sub={s ? `POS ${peso0(s.retail30)} · other ${peso0(s.other30)}` : ''} />
         <StatCard label="Unpaid" value={s ? peso0(s.unpaidTotal) : '—'} sub={s ? `${s.unpaidCount} invoices` : ''} subColor={brand.orange} />
       </Grid>
+      <Section title="GCash received today" action={<Typography variant="caption" color="text.secondary">{fdate(new Date())}</Typography>}>
+        <GcashTally date={isoDay()} />
+      </Section>
       <Section>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" allowScrollButtonsMobile sx={{ mb: 1.5 }}>{TABS.map(([k, l]) => <Tab key={k} value={k} label={l} />)}</Tabs>
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ mb: 1.5 }}>

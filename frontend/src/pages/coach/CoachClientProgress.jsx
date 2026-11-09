@@ -37,7 +37,6 @@ export default function CoachClientProgress() {
   const bf = recs.filter((x) => x.bodyFat != null);
   const first = w[0];
   const last = w[w.length - 1];
-  const lastBmi = [...recs].reverse().find((x) => x.bmi != null);
 
   const choose = (id) => {
     setSel(id);
@@ -83,7 +82,7 @@ export default function CoachClientProgress() {
               <UserAvatar name={member.name} src={member.avatarUrl} size={44} />
               <Box>
                 <Typography fontWeight={800}>{member.name}</Typography>
-                <Typography variant="caption" color="text.secondary">{member.memberCode} · Goal: {member.fitnessGoal || '—'} · {member.heightCm ? `${member.heightCm} cm` : 'height not set'}</Typography>
+                <Typography variant="caption" color="text.secondary">{member.memberCode} · Goal: {member.fitnessGoal || '—'}</Typography>
               </Box>
               <StatusChip label={member.status} />
             </Stack>
@@ -97,10 +96,9 @@ export default function CoachClientProgress() {
       {sel && member && (
         <DataState {...pr} onRetry={pr.reload}>
           <Stack spacing={2}>
-            <Grid cols={{ xs: 1, sm: 2, lg: 4 }}>
+            <Grid cols={{ xs: 1, sm: 3 }}>
               <StatCard label="Current weight" value={last ? `${last.weight} kg` : '—'} sub={first && last && first !== last ? `${(last.weight - first.weight > 0 ? '+' : '')}${(last.weight - first.weight).toFixed(1)} kg since ${fdm(first.recordDate)}` : 'No change yet'} />
               <StatCard label="Body fat" value={bf.length ? `${bf[bf.length - 1].bodyFat}%` : '—'} />
-              <StatCard label="BMI" value={lastBmi?.bmi ?? '—'} sub={member.heightCm ? '' : 'Needs height on profile'} />
               <StatCard label="Total visits" value={member.totalVisits ?? 0} sub={`${member.visits30} in the last 30 days`} />
             </Grid>
             <Grid cols={{ xs: 1, md: '2fr 1fr' }}>
@@ -125,14 +123,13 @@ export default function CoachClientProgress() {
             <Section title="History">
               <Box sx={{ overflowX: 'auto' }}>
                 <Table size="small">
-                  <TableHead><TableRow><TableCell>Date</TableCell><TableCell>Weight</TableCell><TableCell>Body fat</TableCell><TableCell>BMI</TableCell><TableCell>Remarks</TableCell><TableCell>Recorded by</TableCell><TableCell /></TableRow></TableHead>
+                  <TableHead><TableRow><TableCell>Date</TableCell><TableCell>Weight</TableCell><TableCell>Body fat</TableCell><TableCell>Remarks</TableCell><TableCell>Recorded by</TableCell><TableCell /></TableRow></TableHead>
                   <TableBody>
                     {[...recs].reverse().map((x) => (
                       <TableRow key={x._id}>
                         <TableCell>{fdate(x.recordDate)}</TableCell>
                         <TableCell>{x.weight != null ? `${x.weight} kg` : '—'}</TableCell>
                         <TableCell>{x.bodyFat != null ? `${x.bodyFat}%` : '—'}</TableCell>
-                        <TableCell>{x.bmi ?? '—'}</TableCell>
                         <TableCell sx={{ color: 'text.secondary' }}>{x.remarks || '—'}</TableCell>
                         <TableCell>{by(x)}</TableCell>
                         <TableCell align="right">{String(x.recordedBy) === String(account?._id) && <IconButton size="small" aria-label="Delete record" onClick={() => setDel(x)}><DeleteOutline fontSize="small" /></IconButton>}</TableCell>

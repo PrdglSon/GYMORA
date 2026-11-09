@@ -18,7 +18,7 @@ export default function RegisterMember() {
   const navigate = useNavigate();
   const { acceptSession } = useAuth();
   const { data, error: loadError } = useFetch(`/public/gyms/${slug}`);
-  const [f, setF, clearDraft] = useDraft(`gymora:draft:join:${slug}`, { firstName: '', lastName: '', email: '', phoneNumber: '', password: '', fitnessGoal: 'General Fitness', planId: params.get('plan') || '', gender: 'Prefer not to say', birthdate: '', heightCm: '', isStudent: false, school: '' });
+  const [f, setF, clearDraft] = useDraft(`gymora:draft:join:${slug}`, { firstName: '', lastName: '', email: '', phoneNumber: '', password: '', fitnessGoal: 'General Fitness', planId: params.get('plan') || '', gender: 'Prefer not to say', birthdate: '', isStudent: false, school: '' });
   const [agree, setAgree] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
@@ -43,7 +43,6 @@ export default function RegisterMember() {
       const { data: res } = await api.post(`/public/gyms/${slug}/register`, {
         ...f,
         email: f.email.trim(),
-        heightCm: f.heightCm ? Number(f.heightCm) : undefined,
         birthdate: f.birthdate || undefined,
         school: f.isStudent ? f.school : undefined,
       });
@@ -102,7 +101,6 @@ export default function RegisterMember() {
             <TextField select label="Fitness goal" value={f.fitnessGoal} onChange={set('fitnessGoal')}>{(data.goals || []).map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
             <TextField select label="Gender" value={f.gender} onChange={set('gender')}>{GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
             <TextField label="Birthdate" type="date" value={f.birthdate} onChange={set('birthdate')} InputLabelProps={{ shrink: true }} />
-            <TextField label="Height (cm)" type="number" value={f.heightCm} onChange={set('heightCm')} inputProps={{ min: 100, max: 250 }} helperText="Used for BMI and nutrition tips" />
           </Grid>
           <TextField select label="Membership plan" value={f.planId} onChange={set('planId')} required>
             {data.plans.map((p) => <MenuItem key={p._id} value={p._id} disabled={p.isStudentPlan && !f.isStudent}>{p.planName} · {peso0(p.price)} / {p.duration} days{p.isStudentPlan ? ' (students)' : ''}</MenuItem>)}

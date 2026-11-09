@@ -69,7 +69,6 @@ r.post('/gyms/:slug/register', limiter, ah(async (req, res) => {
     fitnessGoal: FITNESS_GOALS.includes(req.body.fitnessGoal) ? req.body.fitnessGoal : 'General Fitness',
     gender: req.body.gender || undefined,
     birthdate: req.body.birthdate || undefined,
-    heightCm: req.body.heightCm || undefined,
     student: { isStudent, status: 'none', school: req.body.school },
   });
   const { payment: invoice } = await sellMembership({ gym: gym._id, member, plan, paid: false });

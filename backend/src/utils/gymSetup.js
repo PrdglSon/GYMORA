@@ -1,5 +1,4 @@
 import { Gym, StaffAdmin, MembershipPlan } from '../models/index.js';
-import { seedNutritionRules } from './rules.js';
 import { ApiError } from './http.js';
 
 export function slugify(s) {
@@ -27,7 +26,6 @@ export async function createGymWithOwner({ gym: g, owner, status = 'active', slu
     gym.owner = admin._id;
     await gym.save();
     await MembershipPlan.insertMany(DEFAULT_PLANS.map((p) => ({ ...p, gym: gym._id })));
-    await seedNutritionRules(gym._id);
     return { gym, admin };
   } catch (err) {
     await Gym.deleteOne({ _id: gym._id });

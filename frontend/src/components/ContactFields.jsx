@@ -1,7 +1,7 @@
 import { TextField } from '@mui/material';
 
 export const cleanPhone = (v) => String(v ?? '').replace(/\D/g, '').slice(0, 11);
-export const cleanName = (v) => String(v ?? '').replace(/[^\p{L}\p{M}\s.'-]/gu, '').replace(/^\s+/, '');
+export const cleanName = (v) => String(v ?? '').replace(/[^\p{L}\p{M}\s.'-]/gu, '').replace(/^\s+/, '').replace(/(^|[\s-])(\p{Ll})/gu, (m, sep, ch) => `${sep}${ch.toLocaleUpperCase('en-PH')}`);
 export const isPhPhone = (v) => /^09\d{9}$/.test(String(v || ''));
 
 function phoneHint(v) {
@@ -33,7 +33,7 @@ export function NameField({ value, onChange, inputProps, ...rest }) {
       {...rest}
       value={value ?? ''}
       onChange={(e) => onChange?.({ ...e, target: { ...e.target, value: cleanName(e.target.value) } })}
-      inputProps={{ ...inputProps, pattern: "[\\p{L}\\p{M}][\\p{L}\\p{M}\\s.'\\-]*", title: 'Letters only (spaces, periods, hyphens and apostrophes are allowed)' }}
+      inputProps={{ ...inputProps, autoCapitalize: 'words', pattern: "[\\p{L}\\p{M}][\\p{L}\\p{M}\\s.'\\-]*", title: 'Letters only (spaces, periods, hyphens and apostrophes are allowed)' }}
     />
   );
 }

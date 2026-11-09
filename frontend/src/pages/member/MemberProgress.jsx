@@ -18,7 +18,6 @@ export default function MemberProgress() {
   const toast = useToast();
   const records = useFetch('/progress/me', { initial: [] });
   const badges = useFetch('/engagement/badges/me');
-  const nutrition = useFetch('/engagement/nutrition/me');
   const [f, setF] = useState(blank);
   const [saving, setSaving] = useState(false);
   const [del, setDel] = useState(null);
@@ -34,7 +33,6 @@ export default function MemberProgress() {
   const reloadAll = () => {
     records.reload();
     badges.reload();
-    nutrition.reload();
   };
 
   const save = async (e) => {
@@ -74,10 +72,9 @@ export default function MemberProgress() {
 
   return (
     <Stack spacing={2}>
-      <Grid cols={{ xs: 1, sm: 2, lg: 4 }}>
+      <Grid cols={{ xs: 1, sm: 3 }}>
         <StatCard label="Current weight" value={last ? `${last.weight} kg` : '—'} sub={change != null ? `${change > 0 ? '+' : ''}${change} kg since ${fdm(first.recordDate)}` : 'Log your first measurement'} />
         <StatCard label="Body fat" value={lastFat ? `${lastFat.bodyFat}%` : '—'} sub={lastFat ? `as of ${fdate(lastFat.recordDate)}` : 'No record yet'} />
-        <StatCard label="BMI" value={nutrition.data?.bmi ?? '—'} sub={nutrition.data?.band || 'Add your height in Profile'} />
         <StatCard label="Visits" value={badges.data?.stats?.visits ?? '—'} sub={badges.data ? `${badges.data.stats.streak}-day streak · ${earned}/${badges.data.badges.length} badges` : ''} />
       </Grid>
 
@@ -110,7 +107,7 @@ export default function MemberProgress() {
         </Section>
       </Grid>
 
-      <Grid cols={{ xs: 1, md: 2 }}>
+      <Grid cols={{ xs: 1 }}>
         <Section title="Achievements">
           <DataState {...badges} onRetry={badges.reload}>
             <Grid cols={{ xs: 1, sm: 2 }} gap={1.5}>
@@ -128,28 +125,6 @@ export default function MemberProgress() {
             </Grid>
           </DataState>
         </Section>
-        <Section title={`Nutrition tips${nutrition.data?.goal ? ` for ${nutrition.data.goal}` : ''}`}>
-          <DataState {...nutrition} onRetry={nutrition.reload}>
-            {nutrition.data?.bmi != null && (
-              <Typography variant="body2" sx={{ mb: 1.5 }}>
-                Based on your latest BMI of <b>{nutrition.data.bmi}</b> ({nutrition.data.band}) and your goal.
-              </Typography>
-            )}
-            {nutrition.data?.rules?.length ? (
-              nutrition.data.rules.map((r) => (
-                <Box key={r.title} sx={{ mb: 1.5 }}>
-                  <Typography variant="body2" fontWeight={700}>{r.title}</Typography>
-                  <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-                    {(r.tips || []).map((t) => <Typography component="li" variant="body2" key={t}>{t}</Typography>)}
-                  </Box>
-                </Box>
-              ))
-            ) : (
-              <Empty>No tips for your goal yet.</Empty>
-            )}
-            <Typography variant="caption" color="text.secondary">{nutrition.data?.disclaimer}</Typography>
-          </DataState>
-        </Section>
       </Grid>
 
       <Section title="History">
@@ -160,7 +135,6 @@ export default function MemberProgress() {
                 <TableCell>Date</TableCell>
                 <TableCell>Weight</TableCell>
                 <TableCell>Body fat</TableCell>
-                <TableCell>BMI</TableCell>
                 <TableCell>Logged by</TableCell>
                 <TableCell>Remarks</TableCell>
                 <TableCell />
@@ -172,7 +146,6 @@ export default function MemberProgress() {
                   <TableCell>{fdate(r.recordDate)}</TableCell>
                   <TableCell>{r.weight != null ? `${r.weight} kg` : '—'}</TableCell>
                   <TableCell>{r.bodyFat != null ? `${r.bodyFat}%` : '—'}</TableCell>
-                  <TableCell>{r.bmi ?? '—'}</TableCell>
                   <TableCell>{r.recordedByType === 'Member' ? 'You' : r.coach ? `Coach ${r.coach.firstName}` : 'Staff'}</TableCell>
                   <TableCell sx={{ color: 'text.secondary' }}>{r.remarks || '—'}</TableCell>
                   <TableCell align="right">

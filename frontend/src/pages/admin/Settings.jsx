@@ -238,89 +238,6 @@ function Plans() {
   );
 }
 
-function Nutrition() {
-  const toast = useToast();
-  const r = useFetch('/engagement/nutrition-rules', { initial: [] });
-  const [edit, setEdit] = useState(undefined);
-  const [f, setF] = useState(null);
-  const [del, setDel] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const open = (x) => {
-    setF(x ? { goal: x.goal, bmiMin: x.bmiMin, bmiMax: x.bmiMax, title: x.title || '', tips: (x.tips || []).join('\n'), status: x.status } : { goal: 'Weight Loss', bmiMin: 0, bmiMax: 100, title: '', tips: '', status: 'Active' });
-    setEdit(x || null);
-  };
-  const save = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    const body = { ...f, bmiMin: Number(f.bmiMin), bmiMax: Number(f.bmiMax), tips: f.tips.split('\n').map((t) => t.trim()).filter(Boolean) };
-    try {
-      if (edit) await api.patch(`/engagement/nutrition-rules/${edit._id}`, body);
-      else await api.post('/engagement/nutrition-rules', body);
-      toast('Rule saved');
-      setEdit(undefined);
-      r.reload();
-    } catch (err) {
-      toast(errMsg(err), 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-  const remove = async () => {
-    try {
-      await api.delete(`/engagement/nutrition-rules/${del._id}`);
-      toast('Rule deleted');
-      r.reload();
-    } catch (err) {
-      toast(errMsg(err), 'error');
-    }
-    setDel(null);
-  };
-  return (
-    <Section title="Nutrition rules" action={<Button variant="contained" onClick={() => open(null)}>+ Add rule</Button>}>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>Rule-based tips: members see every active rule that matches their fitness goal (or "Any") and whose BMI range includes their latest BMI. General guidance only, not medical advice.</Typography>
-      <DataState {...r} onRetry={r.reload}>
-        <Box sx={{ overflowX: 'auto' }}>
-          <Table size="small">
-            <TableHead><TableRow><TableCell>Goal</TableCell><TableCell>BMI range</TableCell><TableCell>Title</TableCell><TableCell>Tips</TableCell><TableCell>Status</TableCell><TableCell /></TableRow></TableHead>
-            <TableBody>
-              {(r.data || []).map((x) => (
-                <TableRow key={x._id}>
-                  <TableCell>{x.goal}</TableCell>
-                  <TableCell sx={{ whiteSpace: 'nowrap' }}>{x.bmiMin}–{x.bmiMax}</TableCell>
-                  <TableCell><b>{x.title}</b></TableCell>
-                  <TableCell sx={{ color: 'text.secondary', maxWidth: 360 }}>{(x.tips || []).join(' · ')}</TableCell>
-                  <TableCell><StatusChip label={x.status} /></TableCell>
-                  <TableCell><Stack direction="row" spacing={1}><Button size="small" variant="outlined" onClick={() => open(x)}>Edit</Button><IconButton size="small" onClick={() => setDel(x)} aria-label="Delete rule"><DeleteOutline fontSize="small" /></IconButton></Stack></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {!r.data?.length && <Empty>No nutrition rules yet. Built-in tips are shown until you add some.</Empty>}
-        </Box>
-      </DataState>
-      <Dialog open={edit !== undefined} onClose={() => setEdit(undefined)} maxWidth="sm" fullWidth PaperProps={{ component: 'form', onSubmit: save }}>
-        <DialogTitle>{edit ? 'Edit rule' : 'Add rule'}</DialogTitle>
-        <DialogContent>
-          {f && (
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <Grid cols={{ xs: 1, sm: 3 }}>
-                <TextField select label="Goal" value={f.goal} onChange={(e) => setF({ ...f, goal: e.target.value })}>{GOALS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
-                <TextField label="BMI from" type="number" value={f.bmiMin} onChange={(e) => setF({ ...f, bmiMin: e.target.value })} inputProps={{ step: 0.1, min: 0 }} />
-                <TextField label="BMI below" type="number" value={f.bmiMax} onChange={(e) => setF({ ...f, bmiMax: e.target.value })} inputProps={{ step: 0.1, min: 0 }} />
-              </Grid>
-              <TextField label="Title" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} required />
-              <TextField label="Tips (one per line)" value={f.tips} onChange={(e) => setF({ ...f, tips: e.target.value })} multiline minRows={4} required />
-              <TextField select label="Status" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><MenuItem value="Active">Active</MenuItem><MenuItem value="Inactive">Inactive</MenuItem></TextField>
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}><Button variant="outlined" onClick={() => setEdit(undefined)}>Cancel</Button><Button type="submit" variant="contained" disabled={busy}>Save rule</Button></DialogActions>
-      </Dialog>
-      <ConfirmDialog open={!!del} title={`Delete "${del?.title}"?`} message="Members will no longer see these tips." confirmLabel="Delete" danger onClose={() => setDel(null)} onConfirm={remove} />
-    </Section>
-  );
-}
-
 function Staff() {
   const { account } = useAuth();
   const toast = useToast();
@@ -632,22 +549,20 @@ export default function Settings() {
         <Tab label="Gym info" />
         <Tab label="Operations" />
         <Tab label="Membership plans" />
-        <Tab label="Nutrition rules" />
         <Tab label="Staff accounts" />
         <Tab label="Kiosk & jobs" />
         <Tab label="Online payments" />
       </Tabs>
       {tab === 2 && <Plans />}
-      {tab === 3 && <Nutrition />}
-      {tab === 4 && <Staff />}
+      {tab === 3 && <Staff />}
       {[0, 1, 5, 6].includes(tab) && (
         <DataState {...g} onRetry={g.reload}>
           {g.data && (
             <>
               {tab === 0 && <GymInfo gym={g.data} onSaved={saved} />}
               {tab === 1 && <Operations gym={g.data} onSaved={saved} />}
-              {tab === 5 && <KioskAndJobs gym={g.data} onSaved={saved} />}
-              {tab === 6 && <OnlinePayments gym={g.data} onSaved={saved} />}
+              {tab === 4 && <KioskAndJobs gym={g.data} onSaved={saved} />}
+              {tab === 5 && <OnlinePayments gym={g.data} onSaved={saved} />}
             </>
           )}
         </DataState>

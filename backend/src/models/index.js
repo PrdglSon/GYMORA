@@ -29,3 +29,4 @@ export { default as Equipment, EQUIPMENT_STATUS } from './Equipment.js';
 export { default as AuditLog } from './AuditLog.js';
 export { default as Counter, nextCode } from './Counter.js';
 export { default as Expense, EXPENSE_CATEGORIES } from './Expense.js';
+export { default as GcashEntry } from './GcashEntry.js';

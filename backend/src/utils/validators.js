@@ -10,12 +10,18 @@ export function normalizePhone(value) {
 
 export const isPhPhone = (value) => /^09\d{9}$/.test(String(value || ''));
 
+export function capitalizeName(value) {
+  if (value === undefined || value === null) return value;
+  return String(value).replace(/\s+/g, ' ').replace(/(^|[\s-])(\p{Ll})/gu, (m, sep, ch) => `${sep}${ch.toLocaleUpperCase('en-PH')}`);
+}
+
 export const isPersonName = (value) => /^\p{L}[\p{L}\p{M}\s.'-]*$/u.test(String(value || '').trim());
 
 const LABELS = { firstName: 'First name', lastName: 'Last name', fullName: 'Name', payerName: 'Payer name', customerName: 'Customer name' };
 
 export function applyContactRules(schema, { phones = [], names = [] } = {}) {
   for (const p of phones) schema.path(p).set(normalizePhone);
+  for (const p of names) schema.path(p).set(capitalizeName);
   schema.pre('validate', function validateContact(next) {
     for (const p of phones) {
       const v = this.get(p);

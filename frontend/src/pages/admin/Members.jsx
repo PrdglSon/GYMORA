@@ -29,7 +29,7 @@ const plusDays = (iso, n) => (iso ? dayjs(iso).add(n, 'day').format('YYYY-MM-DD'
 function AddMemberDialog({ open, onClose, plans, onSaved }) {
   const toast = useToast();
   const active = plans.filter((p) => p.status === 'Active');
-  const empty = { kind: 'new', firstName: '', lastName: '', email: '', phoneNumber: '', gender: 'Prefer not to say', birthdate: '', fitnessGoal: 'General Fitness', heightCm: '', address: '', emergencyContact: '', password: '', planId: '', method: 'Cash', referenceNumber: '', isStudent: false, school: '', memberSince: '', startDate: '', endDate: '', amountPaid: '', paymentDate: '', recordPayment: true };
+  const empty = { kind: 'new', firstName: '', lastName: '', email: '', phoneNumber: '', gender: 'Prefer not to say', birthdate: '', fitnessGoal: 'General Fitness', address: '', emergencyContact: '', password: '', planId: '', method: 'Cash', referenceNumber: '', isStudent: false, school: '', memberSince: '', startDate: '', endDate: '', amountPaid: '', paymentDate: '', recordPayment: true };
   const [f, setF, clearDraft] = useDraft('gymora:draft:add-member', empty);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -61,7 +61,7 @@ function AddMemberDialog({ open, onClose, plans, onSaved }) {
     lock.current = true;
     setBusy(true);
     try {
-      const base = { firstName: f.firstName, lastName: f.lastName, email: f.email, phoneNumber: f.phoneNumber, gender: f.gender, fitnessGoal: f.fitnessGoal, address: f.address, emergencyContact: f.emergencyContact, isStudent: f.isStudent, school: f.school, password: f.password || undefined, heightCm: f.heightCm || undefined, birthdate: f.birthdate || undefined, planId: f.planId || undefined, referenceNumber: f.referenceNumber || undefined };
+      const base = { firstName: f.firstName, lastName: f.lastName, email: f.email, phoneNumber: f.phoneNumber, gender: f.gender, fitnessGoal: f.fitnessGoal, address: f.address, emergencyContact: f.emergencyContact, isStudent: f.isStudent, school: f.school, password: f.password || undefined, birthdate: f.birthdate || undefined, planId: f.planId || undefined, referenceNumber: f.referenceNumber || undefined };
       const body = existing
         ? { ...base, existing: true, memberSince: f.memberSince || undefined, startDate: f.planId ? f.startDate : undefined, endDate: f.planId ? f.endDate || undefined : undefined, amountPaid: f.planId && f.recordPayment ? f.amountPaid : undefined, paymentDate: f.planId && f.recordPayment ? f.paymentDate || f.startDate : undefined, recordPayment: !!f.recordPayment, method: f.planId && f.recordPayment ? (f.method === 'Unpaid' ? 'Cash' : f.method) : undefined }
         : { ...base, method: f.planId ? f.method : undefined };
@@ -103,7 +103,6 @@ function AddMemberDialog({ open, onClose, plans, onSaved }) {
               <TextField select label="Gender" value={f.gender} onChange={set('gender')}>{GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
               <TextField label="Birthdate" type="date" value={f.birthdate} onChange={set('birthdate')} InputLabelProps={{ shrink: true }} />
               <TextField select label="Fitness goal" value={f.fitnessGoal} onChange={set('fitnessGoal')}>{GOALS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
-              <TextField label="Height (cm)" type="number" value={f.heightCm} onChange={set('heightCm')} inputProps={{ min: 100, max: 250 }} />
               <TextField label="Address" value={f.address} onChange={set('address')} />
               <TextField label="Emergency contact" value={f.emergencyContact} onChange={set('emergencyContact')} />
               <TextField label="Login password (optional)" type="text" value={f.password} onChange={set('password')} inputProps={{ minLength: 8 }} helperText="Leave blank to create a temporary one" autoComplete="new-password" />
@@ -176,7 +175,7 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
     if (d.data) {
       const m = d.data.member;
       setRenew((r) => ({ ...r, planId: active.find((p) => String(p._id) === String(m.current?.plan))?._id || active.find((p) => !p.isStudentPlan)?._id || '' }));
-      setEdit({ registrationDate: m.registrationDate ? dayjs(m.registrationDate).format('YYYY-MM-DD') : '', firstName: m.firstName || '', lastName: m.lastName || '', email: m.email || '', phoneNumber: m.phoneNumber || '', gender: m.gender || 'Prefer not to say', birthdate: m.birthdate ? dayjs(m.birthdate).format('YYYY-MM-DD') : '', fitnessGoal: m.fitnessGoal || 'General Fitness', heightCm: m.heightCm || '', address: m.address || '', emergencyContact: m.emergencyContact || '', assignedCoach: m.assignedCoach || '' });
+      setEdit({ registrationDate: m.registrationDate ? dayjs(m.registrationDate).format('YYYY-MM-DD') : '', firstName: m.firstName || '', lastName: m.lastName || '', email: m.email || '', phoneNumber: m.phoneNumber || '', gender: m.gender || 'Prefer not to say', birthdate: m.birthdate ? dayjs(m.birthdate).format('YYYY-MM-DD') : '', fitnessGoal: m.fitnessGoal || 'General Fitness', address: m.address || '', emergencyContact: m.emergencyContact || '', assignedCoach: m.assignedCoach || '' });
     }
   }, [d.data, plans]);
 
@@ -303,7 +302,7 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
                 </Stack>
               )}
               {tab === 1 && edit && (
-                <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); const { registrationDate, ...rest } = edit; run(() => api.patch(`/members/${id}`, { ...rest, ...(isAdmin && registrationDate ? { registrationDate } : {}), heightCm: edit.heightCm || undefined, birthdate: edit.birthdate || undefined, assignedCoach: edit.assignedCoach || null }), 'Member updated'); }}>
+                <Stack component="form" spacing={2} onSubmit={(e) => { e.preventDefault(); const { registrationDate, ...rest } = edit; run(() => api.patch(`/members/${id}`, { ...rest, ...(isAdmin && registrationDate ? { registrationDate } : {}), birthdate: edit.birthdate || undefined, assignedCoach: edit.assignedCoach || null }), 'Member updated'); }}>
                   <Grid cols={{ xs: 1, sm: 2 }}>
                     {isAdmin && <TextField label="Member since" type="date" value={edit.registrationDate} onChange={sE('registrationDate')} InputLabelProps={{ shrink: true }} inputProps={{ max: dayjs().format('YYYY-MM-DD') }} helperText="Change this for members who joined before GYMORA" />}
                     <NameField label="First name" value={edit.firstName} onChange={sE('firstName')} required />
@@ -313,7 +312,6 @@ function MemberDrawer({ id, onClose, plans, coaches, onChanged }) {
                     <TextField select label="Gender" value={edit.gender} onChange={sE('gender')}>{GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
                     <TextField label="Birthdate" type="date" value={edit.birthdate} onChange={sE('birthdate')} InputLabelProps={{ shrink: true }} />
                     <TextField select label="Fitness goal" value={edit.fitnessGoal} onChange={sE('fitnessGoal')}>{GOALS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}</TextField>
-                    <TextField label="Height (cm)" type="number" value={edit.heightCm} onChange={sE('heightCm')} inputProps={{ min: 100, max: 250 }} />
                     <TextField select label="Assigned coach" value={edit.assignedCoach} onChange={sE('assignedCoach')}><MenuItem value="">None</MenuItem>{coaches.map((c) => <MenuItem key={c._id} value={c._id}>{c.name}</MenuItem>)}</TextField>
                     <TextField label="Emergency contact" value={edit.emergencyContact} onChange={sE('emergencyContact')} />
                   </Grid>

@@ -20,7 +20,7 @@ import { env } from '../config/env.js';
 const r = Router();
 r.use(protect);
 
-const PROFILE_FIELDS = ['firstName', 'lastName', 'phoneNumber', 'gender', 'birthdate', 'address', 'emergencyContact', 'fitnessGoal', 'heightCm'];
+const PROFILE_FIELDS = ['firstName', 'lastName', 'phoneNumber', 'gender', 'birthdate', 'address', 'emergencyContact', 'fitnessGoal'];
 
 function statusFilter(status, settings) {
   const today = startOfDay();

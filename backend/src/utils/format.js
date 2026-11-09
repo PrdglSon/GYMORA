@@ -18,7 +18,6 @@ export function memberDTO(m, settings) {
     address: m.address,
     emergencyContact: m.emergencyContact,
     fitnessGoal: m.fitnessGoal,
-    heightCm: m.heightCm,
     assignedCoach: m.assignedCoach,
     student: m.student,
     current: m.current,

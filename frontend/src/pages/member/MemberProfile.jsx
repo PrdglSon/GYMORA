@@ -71,7 +71,6 @@ const toForm = (m) => ({
   phoneNumber: m.phoneNumber || '',
   address: m.address || '',
   fitnessGoal: m.fitnessGoal || 'General Fitness',
-  heightCm: m.heightCm || '',
   gender: m.gender || 'Prefer not to say',
   emergencyContact: m.emergencyContact || '',
   birthdate: m.birthdate ? String(m.birthdate).slice(0, 10) : '',
@@ -101,7 +100,7 @@ export default function MemberProfile() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { data } = await api.patch('/members/me', { ...f, heightCm: f.heightCm ? Number(f.heightCm) : undefined, birthdate: f.birthdate || undefined });
+      const { data } = await api.patch('/members/me', { ...f, birthdate: f.birthdate || undefined });
       me.setData((d) => ({ ...d, member: data }));
       toast('Profile saved');
       refresh();
@@ -216,10 +215,9 @@ export default function MemberProfile() {
                   <TextField select label="Gender" value={f.gender} onChange={set('gender')}>
                     {GENDERS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}
                   </TextField>
-                  <TextField select label="Fitness goal" value={f.fitnessGoal} onChange={set('fitnessGoal')} helperText="Used for coach matching and nutrition tips">
+                  <TextField select label="Fitness goal" value={f.fitnessGoal} onChange={set('fitnessGoal')} helperText="Used for coach matching">
                     {GOALS.map((g) => <MenuItem key={g} value={g}>{g}</MenuItem>)}
                   </TextField>
-                  <TextField label="Height (cm)" type="number" value={f.heightCm} onChange={set('heightCm')} inputProps={{ min: 100, max: 250 }} helperText="Needed for BMI" />
                   <TextField label="Emergency contact" value={f.emergencyContact} onChange={set('emergencyContact')} />
                 </Grid>
                 <TextField label="Address" value={f.address} onChange={set('address')} />

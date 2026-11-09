@@ -88,7 +88,7 @@ export default function RegisterGym() {
             </Stack>
           </Box>
           <Button type="submit" size="large" variant="contained" disabled={busy}>Register my gym</Button>
-          <Typography variant="caption" color="text.secondary">We create starter membership plans and nutrition rules you can edit in Settings.</Typography>
+          <Typography variant="caption" color="text.secondary">We create starter membership plans you can edit in Settings.</Typography>
         </Stack>
       )}
     </AuthLayout>

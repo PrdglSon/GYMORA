@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { Payment, PosTransaction, PosItem, Attendance, Member, FitnessProgram, ProgramSchedule, Enrollment, Product, IncidentReport, Inquiry, Equipment, Coach, MembershipPlan, Expense } from '../models/index.js';
+import { Payment, PosTransaction, PosItem, Attendance, Member, FitnessProgram, ProgramSchedule, Enrollment, Product, IncidentReport, Inquiry, Equipment, Coach, MembershipPlan, Expense, GcashEntry } from '../models/index.js';
 import { monthRange } from '../utils/month.js';
 import { protect, allow, STAFF } from '../middleware/auth.js';
 import { ah } from '../utils/http.js';
@@ -95,8 +95,12 @@ const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const CHANNEL_LABEL = { gcash: 'GCash', paymaya: 'Maya', maya: 'Maya', card: 'Card', grab_pay: 'GrabPay', qrph: 'QR Ph', dob: 'Online banking', billease: 'BillEase' };
 
 export function methodKey(method, online) {
-  if (method === 'Online') return CHANNEL_LABEL[String(online?.channel || '').toLowerCase()] || 'Online';
-  if (!method || method === 'Unpaid') return 'Other';
+  if (method === 'Online') {
+    const label = CHANNEL_LABEL[String(online?.channel || '').toLowerCase()];
+    return label ? `PayMongo (${label})` : 'PayMongo';
+  }
+  if (!method || method === 'Cash' || method === 'GCash') return 'Cash';
+  if (method === 'Unpaid') return 'Other';
   return method;
 }
 
@@ -124,7 +128,10 @@ r.get('/analytics', allow('admin'), ah(async (req, res) => {
     PosTransaction.find({ gym: g, status: 'Completed', transactionDate: { $gte: prev.start, $lt: prev.end } }).select('productAmount').lean(),
     Expense.find({ gym: g, date: { $gte: prev.start, $lt: prev.end } }).select('amount').lean(),
   ]);
-  const items = await PosItem.find({ transaction: { $in: pos.map((p) => p._id) }, itemType: 'Product' }).lean();
+  const [items, gcashEntries] = await Promise.all([
+    PosItem.find({ transaction: { $in: pos.map((p) => p._id) }, itemType: 'Product' }).lean(),
+    GcashEntry.find({ gym: g, date: inMonth }).select('date amount').lean(),
+  ]);
   const productTotals = {};
   items.forEach((i) => {
     productTotals[i.itemName] = productTotals[i.itemName] || { quantity: 0, revenue: 0 };
@@ -161,6 +168,19 @@ r.get('/analytics', allow('admin'), ah(async (req, res) => {
   };
   pays.forEach((p) => addDaily(p.paymentDate, methodKey(p.paymentMethod, p.online), p.amount));
   posIncome.forEach((p) => addDaily(p.at, p.method, p.amount));
+  let gcashMonth = 0;
+  gcashEntries.forEach((e) => {
+    const k = dayKey(e.date);
+    salesByMethod[k] = salesByMethod[k] || {};
+    salesByMethod[k].GCash = r2((salesByMethod[k].GCash || 0) + e.amount);
+    salesByMethod[k].Cash = r2((salesByMethod[k].Cash || 0) - e.amount);
+    gcashMonth = r2(gcashMonth + e.amount);
+  });
+  if (gcashMonth) {
+    methods.Cash = methods.Cash || { method: 'Cash', count: 0, amount: 0 };
+    methods.Cash.amount = r2(methods.Cash.amount - gcashMonth);
+    methods.GCash = { method: 'GCash', count: gcashEntries.length, amount: gcashMonth };
+  }
   const expensesByMethod = {};
   expenses.forEach((e) => (expensesByMethod[e.paidWith || 'Other'] = r2((expensesByMethod[e.paidWith || 'Other'] || 0) + e.amount)));
   const dayCount = Math.max(range.elapsed, 1);

@@ -9,6 +9,7 @@ import api, { errMsg } from '../../api';
 import useFetch from '../../hooks/useFetch';
 import { useToast } from '../../context/ToastContext';
 import { keepOpenOnTapOutside } from '../../hooks/useDraft';
+import GcashTally from '../../components/GcashTally';
 import { usePageTitle } from '../../components/AppShell';
 import { DataState, Grid, Section, StatCard, StatusChip, Progress, Empty, ConfirmDialog } from '../../components/ui';
 import { LineChart, BarChart, DonutChart } from '../../components/Charts';
@@ -16,7 +17,7 @@ import { peso, peso0, fdate, hourLabel, pct, isoDay } from '../../utils/format';
 import { brand } from '../../theme';
 
 const COLORS = [brand.yellow, brand.orange, brand.green, brand.blue, brand.purple, '#888'];
-const METHOD_COLORS = { Cash: brand.green, GCash: brand.blue, Maya: '#00a86b', Card: brand.purple, GrabPay: '#00b14f', 'QR Ph': brand.orange, 'Bank transfer': '#5c6bc0', Online: brand.yellow, Other: '#888' };
+const METHOD_COLORS = { Cash: brand.green, GCash: '#0A63F6', Card: brand.purple, 'Bank transfer': '#5c6bc0', 'PayMongo (GCash)': '#5b8def', 'PayMongo (Maya)': '#00a86b', 'PayMongo (Card)': '#9c6ade', 'PayMongo (GrabPay)': '#00b14f', 'PayMongo (QR Ph)': brand.orange, PayMongo: brand.yellow, Other: '#888' };
 
 const EXPENSE_CATEGORIES = ['Utilities (electricity, water, internet)', 'Rent', 'Salaries and wages', 'Supplies (water, cleaning, toiletries)', 'Equipment and repairs', 'Products for resale', 'Marketing', 'Other'];
 const PAID_WITH = ['Cash', 'GCash', 'Bank transfer', 'Card', 'Other'];
@@ -25,8 +26,9 @@ const dayNum = (d) => dayjs(d).format('D');
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const signed = (n) => `${n < 0 ? '− ' : ''}${peso(Math.abs(n))}`;
 
-const METHOD_ORDER = ['Cash', 'GCash', 'Maya', 'Card', 'GrabPay', 'QR Ph', 'Bank transfer', 'Online', 'Other'];
-const METHOD_NOTE = { Cash: 'cash in the drawer', GCash: 'in the GCash account', Maya: 'in the Maya account', Card: 'card payments', 'Bank transfer': 'bank account', 'QR Ph': 'QR Ph payments', GrabPay: 'GrabPay', Online: 'online payments', Other: 'other methods' };
+const METHOD_ORDER = ['Cash', 'GCash', 'Card', 'Bank transfer', 'PayMongo (GCash)', 'PayMongo (Maya)', 'PayMongo (Card)', 'PayMongo (GrabPay)', 'PayMongo (QR Ph)', 'PayMongo', 'Other'];
+const METHOD_NOTE = { Cash: 'all sales not recorded as GCash or another method', GCash: 'from the GCash tally', Card: 'card payments at the desk', 'Bank transfer': 'bank account', Other: 'other methods' };
+const methodNote = (m) => METHOD_NOTE[m] || (m.startsWith('PayMongo') ? 'paid online, settled by PayMongo' : '');
 
 function sumBy(items, key) {
   const out = {};
@@ -69,7 +71,7 @@ function MethodTable({ sales, expenses, title = 'By payment method' }) {
                     <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: METHOD_COLORS[r.method] || '#9e9e9e', flex: 'none' }} />
                     <Box>
                       <Typography variant="body2" fontWeight={700}>{r.method}</Typography>
-                      <Typography variant="caption" color="text.secondary">{METHOD_NOTE[r.method] || ''}</Typography>
+                      <Typography variant="caption" color="text.secondary">{methodNote(r.method)}</Typography>
                     </Box>
                   </Stack>
                 </TableCell>
@@ -113,7 +115,7 @@ function Figure({ label, value, tone, big, op }) {
   );
 }
 
-function DailySummary({ x, day, setDay, expenses, onAdd, onEdit, onDelete, loading }) {
+function DailySummary({ x, day, setDay, expenses, onAdd, onEdit, onDelete, loading, onMoneyChanged }) {
   const d = dayFigures(x, day, expenses);
   const today = isoDay();
   const first = `${x.month}-01`;
@@ -140,6 +142,7 @@ function DailySummary({ x, day, setDay, expenses, onAdd, onEdit, onDelete, loadi
         <Figure label="Total expenses" value={d.spent} tone="out" op="−" />
         <Figure label={d.net >= 0 ? 'Net income' : 'Net loss'} value={d.net} tone="net" op="=" big />
       </Stack>
+      <Box sx={{ mt: 3 }}><GcashTally date={day} onChanged={onMoneyChanged} /></Box>
       <MethodTable title="Cash, GCash and other methods this day" sales={x.salesByMethod?.[day] || {}} expenses={sumBy(d.items, 'paidWith')} />
       <Grid cols={{ xs: 1, md: 2 }} gap={3} sx={{ mt: 3 }}>
         <Box>
@@ -391,7 +394,7 @@ export default function Reports() {
       <DataState {...r} onRetry={r.reload}>
         {x && (
           <>
-            <DailySummary x={x} day={day} setDay={setDay} expenses={expenses} loading={exp.loading && !exp.data} onAdd={(d) => setEdit(blankExpense(d))} onEdit={(e) => setEdit({ _id: e._id, date: isoDay(e.date), description: e.description, category: e.category, amount: String(e.amount), paidWith: e.paidWith })} onDelete={setDel} />
+            <DailySummary x={x} day={day} setDay={setDay} expenses={expenses} loading={exp.loading && !exp.data} onMoneyChanged={r.reload} onAdd={(d) => setEdit(blankExpense(d))} onEdit={(e) => setEdit({ _id: e._id, date: isoDay(e.date), description: e.description, category: e.category, amount: String(e.amount), paidWith: e.paidWith })} onDelete={setDel} />
             <MonthOverview x={x} />
             <DayByDay x={x} expenses={expenses} day={day} setDay={setDay} month={month} />
             <Typography variant="overline" sx={{ display: 'block', pt: 1, color: 'text.secondary', fontWeight: 800 }}>Gym analytics · {x.label}</Typography>
